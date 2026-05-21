@@ -8,17 +8,20 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
 // ============================================
-// IN-MEMORY STORAGE (No Database Required)
+// PESAFLUX CORRECT CONFIGURATION
 // ============================================
-// Active USSD sessions
-const sessions = new Map();
+const PESAFLUX_API_KEY = process.env.PESAFLUX_API_KEY;
+const PESAFLUX_EMAIL = process.env.PESAFLUX_EMAIL || 'jobisaacmaina22@gmail.com';
+const PESAFLUX_BASE_URL = 'https://api.pesaflux.co.ke/v1';
 
-// Pending STK jobs - each job is processed immediately but ASYNC
-// This ensures STK triggers don't block the USSD response
+// ============================================
+// IN-MEMORY STORAGE
+// ============================================
+const sessions = new Map();
 const pendingSTKJobs = new Map();
 
 // ============================================
-// HELPER: Format phone number for PesaFlux
+// PHONE NUMBER FORMATTER (Handles 0714..., 2547..., +2547..., 014...)
 // ============================================
 function formatPhoneForPesaFlux(rawPhone) {
     let cleaned = rawPhone.toString().replace(/[\s\-\(\)]/g, '');
@@ -32,65 +35,171 @@ function formatPhoneForPesaFlux(rawPhone) {
         cleaned = '254' + cleaned;
     }
     
+    // Must be 2547XXXXXXXX format (12 digits total)
     if (!/^2547\d{8}$/.test(cleaned)) {
-        return { valid: false, formatted: cleaned, error: "Enter a valid Safaricom number (e.g., 0722123456 or 254722123456)" };
+        return { valid: false, formatted: cleaned, error: "Enter a valid Safaricom number (e.g., 0712345678 or 254712345678)" };
     }
     return { valid: true, formatted: cleaned, error: null };
 }
 
 // ============================================
-// BACKGROUND STK PROCESSOR
-// Processes each STK job immediately upon creation
-// Runs asynchronously so it doesn't block the USSD response
+// CORRECT PESAFLUX STK INITIATION
 // ============================================
-async function processSTKJob(sessionId, jobData) {
-    const { phone, amount, orderRef, callbackUrl, rawPhoneEntered } = jobData;
+async function initiatePesaFluxSTK(amount, msisdn, reference) {
+    const payload = {
+        api_key: PESAFLUX_API_KEY,
+        email: PESAFLUX_EMAIL,
+        amount: amount,
+        msisdn: msisdn,  // NOT 'phone' - 'msisdn' is correct
+        reference: reference  // NOT 'order_ref' - 'reference' is correct
+    };
+    
+    console.log(`[PesaFlux] Initiating STK:`, JSON.stringify(payload, null, 2));
     
     try {
-        console.log(`[STK] Processing job for session ${sessionId} | Phone: ${phone} | Amount: ${amount}`);
-        
-        const pesafluxResponse = await axios.post(
-            'https://pesaflux.com/api/stkpush',
-            {
-                amount: amount,
-                phone: phone,
-                order_ref: orderRef,
-                callback_url: callbackUrl
-            },
+        const response = await axios.post(
+            `${PESAFLUX_BASE_URL}/initiatestk`,
+            payload,
             {
                 headers: {
-                    'Authorization': `Bearer ${process.env.PESAFLUX_API_KEY}`,
                     'Content-Type': 'application/json'
                 },
-                timeout: 15000
+                timeout: 20000
             }
         );
         
-        if (pesafluxResponse.data && pesafluxResponse.data.checkout_request_id) {
-            console.log(`[STK] SUCCESS for ${sessionId} | CheckoutID: ${pesafluxResponse.data.checkout_request_id}`);
-            
-            // Log successful initiation
-            fs.appendFileSync('payments.log', 
-                `${new Date().toISOString()} | STK_SENT | Session:${sessionId} | Phone:${phone} | Amount:${amount} | CheckoutID:${pesafluxResponse.data.checkout_request_id}\n`
-            );
-            
-            // Mark job as completed
-            pendingSTKJobs.delete(sessionId);
+        console.log(`[PesaFlux] Response:`, JSON.stringify(response.data, null, 2));
+        
+        // The response should contain transaction_request_id
+        if (response.data && response.data.transaction_request_id) {
+            return {
+                success: true,
+                transactionRequestId: response.data.transaction_request_id,
+                message: response.data.message || 'STK initiated successfully'
+            };
         } else {
-            throw new Error('No checkout_request_id in response');
+            return {
+                success: false,
+                error: response.data?.message || 'No transaction_request_id received',
+                rawResponse: response.data
+            };
         }
         
     } catch (error) {
-        console.error(`[STK] FAILED for ${sessionId}:`, error.response?.data || error.message);
-        
-        fs.appendFileSync('payments.log', 
-            `${new Date().toISOString()} | STK_FAILED | Session:${sessionId} | Phone:${phone} | Error:${error.response?.data?.message || error.message}\n`
+        console.error(`[PesaFlux] Error:`, error.response?.data || error.message);
+        return {
+            success: false,
+            error: error.response?.data?.message || error.message,
+            rawResponse: error.response?.data
+        };
+    }
+}
+
+// ============================================
+// CHECK TRANSACTION STATUS (Optional - for polling)
+// ============================================
+async function checkPesaFluxTransactionStatus(transactionRequestId) {
+    const payload = {
+        api_key: PESAFLUX_API_KEY,
+        email: PESAFLUX_EMAIL,
+        transaction_request_id: transactionRequestId
+    };
+    
+    try {
+        const response = await axios.post(
+            `${PESAFLUX_BASE_URL}/transactionstatus`,
+            payload,
+            {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 10000
+            }
         );
         
-        // Keep the job in pending map for potential retry? 
-        // For now, delete it to prevent infinite loops
+        return response.data;
+    } catch (error) {
+        console.error(`[Status Check Error]:`, error.message);
+        return { status: 'error', message: error.message };
+    }
+}
+
+// ============================================
+// BACKGROUND STK PROCESSOR (Using Correct API)
+// ============================================
+async function processSTKJob(sessionId, jobData) {
+    const { phone, amount, reference, rawPhoneEntered } = jobData;
+    
+    console.log(`[STK] Processing job for session ${sessionId} | Phone: ${phone} | Amount: ${amount}`);
+    
+    const result = await initiatePesaFluxSTK(amount, phone, reference);
+    
+    if (result.success) {
+        console.log(`[STK] SUCCESS for ${sessionId} | TransactionID: ${result.transactionRequestId}`);
+        
+        fs.appendFileSync('payments.log', 
+            `${new Date().toISOString()} | STK_SENT | Session:${sessionId} | Phone:${phone} | Amount:${amount} | TransactionID:${result.transactionRequestId}\n`
+        );
+        
+        // Store the transaction ID for potential status checks
+        pendingSTKJobs.set(sessionId, {
+            ...jobData,
+            transactionRequestId: result.transactionRequestId,
+            status: 'pending'
+        });
+        
+    } else {
+        console.error(`[STK] FAILED for ${sessionId}: ${result.error}`);
+        
+        fs.appendFileSync('payments.log', 
+            `${new Date().toISOString()} | STK_FAILED | Session:${sessionId} | Phone:${phone} | Error:${result.error}\n`
+        );
+        
         pendingSTKJobs.delete(sessionId);
     }
+}
+
+// ============================================
+// PESAFLUX WEBHOOK HANDLER (Correct endpoint)
+// ============================================
+function pesafluxWebhookHandler(req, res) {
+    const webhookData = req.body;
+    
+    console.log(`\n🔔 PESAFLUX WEBHOOK RECEIVED: ${new Date().toISOString()}`);
+    console.log(JSON.stringify(webhookData, null, 2));
+    
+    fs.appendFileSync('payments.log', 
+        `${new Date().toISOString()} | WEBHOOK | ${JSON.stringify(webhookData)}\n`
+    );
+    
+    // Standard PesaFlux webhook response codes
+    // ResponseCode: 0 = Success, 1032 = Cancelled, 1037 = Unreachable, 1001 = Already in progress
+    const isSuccessful = webhookData.ResponseCode === '0' || webhookData.ResponseCode === 0;
+    
+    if (isSuccessful) {
+        const phone = webhookData.msisdn || webhookData.Msisdn;
+        const amount = webhookData.amount || webhookData.Amount;
+        const receipt = webhookData.TransactionID || webhookData.transaction_id;
+        const transactionId = webhookData.transaction_request_id || webhookData.TransactionRequestID;
+        
+        const separator = '='.repeat(60);
+        console.log(`
+${separator}
+💰💰💰 PAYMENT RECEIVED - ACTION REQUIRED! 💰💰💰
+${separator}
+📱 Phone: ${phone}
+💰 Amount: KES ${amount}
+🧾 Receipt: ${receipt}
+🆔 TransactionID: ${transactionId}
+⏰ Time: ${new Date().toLocaleString()}
+${separator}
+⚠️ CALL THIS CUSTOMER TO DISBURSE LOAN ⚠️
+📞 ${phone}
+${separator}`);
+    } else {
+        console.log(`❌ Payment failed or error:`, webhookData);
+    }
+    
+    // Always acknowledge receipt to PesaFlux
+    res.json({ status: 'received', code: 0 });
 }
 
 // ============================================
@@ -105,7 +214,6 @@ app.post('/ussd', async (req, res) => {
         res.send(`${endSession ? 'END' : 'CON'} ${message}`);
     };
     
-    // NEW SESSION
     if (text === '') {
         sessions.set(sessionId, {
             phone: phoneNumber,
@@ -124,7 +232,6 @@ app.post('/ussd', async (req, res) => {
     const inputs = text.split('*');
     const currentLevel = inputs.length - 1;
     
-    // ========== MENU (Level 0) ==========
     if (currentLevel === 0) {
         if (inputs[0] === '1') {
             session.step = 'asking_fullname';
@@ -133,12 +240,10 @@ app.post('/ussd', async (req, res) => {
         } else if (inputs[0] === '2') {
             sessions.delete(sessionId);
             return respond(`Goodbye!`, true);
-        } else {
-            return respond(`1.Apply 2.Exit`);
         }
+        return respond(`1.Apply 2.Exit`);
     }
     
-    // ========== FULL NAME (IGNORED BY BACKEND) ==========
     if (session.step === 'asking_fullname') {
         session.collectedData.fullname = inputs[currentLevel];
         session.step = 'asking_idnumber';
@@ -146,7 +251,6 @@ app.post('/ussd', async (req, res) => {
         return respond(`Enter your ID NUMBER:`);
     }
     
-    // ========== ID NUMBER (IGNORED BY BACKEND) ==========
     if (session.step === 'asking_idnumber') {
         session.collectedData.idnumber = inputs[currentLevel];
         session.step = 'asking_amount';
@@ -154,7 +258,6 @@ app.post('/ussd', async (req, res) => {
         return respond(`Enter loan amount (500-50,000):`);
     }
     
-    // ========== LOAN AMOUNT ==========
     if (session.step === 'asking_amount') {
         const amount = parseInt(inputs[currentLevel]);
         if (isNaN(amount) || amount < 500 || amount > 50000) {
@@ -167,7 +270,6 @@ app.post('/ussd', async (req, res) => {
         return respond(`Loan: KES ${amount}\nCollateral: KES ${session.collateral}\nPurpose?\n1.Business 2.School 3.Emergency 4.Other`);
     }
     
-    // ========== PURPOSE (IGNORED BY BACKEND) ==========
     if (session.step === 'asking_purpose') {
         const purposeMap = { '1':'Business', '2':'School fees', '3':'Emergency', '4':'Other' };
         if (!purposeMap[inputs[currentLevel]]) {
@@ -176,10 +278,9 @@ app.post('/ussd', async (req, res) => {
         session.collectedData.purpose = purposeMap[inputs[currentLevel]];
         session.step = 'asking_phone';
         sessions.set(sessionId, session);
-        return respond(`Enter M-Pesa number for loan:\n(Format: 0722123456)`);
+        return respond(`Enter M-Pesa number for loan:\n(Format: 0712345678)`);
     }
     
-    // ========== PHONE NUMBER (CRITICAL - TRIGGERS STK) ==========
     if (session.step === 'asking_phone') {
         const rawPhone = inputs[currentLevel];
         const phoneValidation = formatPhoneForPesaFlux(rawPhone);
@@ -188,120 +289,59 @@ app.post('/ussd', async (req, res) => {
             return respond(`Invalid. ${phoneValidation.error}\nTry again:`);
         }
         
-        // Store phone number and mark this session as ready for STK
         session.customerPhone = phoneValidation.formatted;
         session.rawPhoneEntered = rawPhone;
         session.step = 'confirm_phone';
         sessions.set(sessionId, session);
-        
         return respond(`Confirm ${rawPhone} is correct?\n1.Yes 2.No`);
     }
     
-    // ========== CONFIRM PHONE NUMBER ==========
     if (session.step === 'confirm_phone') {
         if (inputs[currentLevel] === '2') {
             session.step = 'asking_phone';
             sessions.set(sessionId, session);
-            return respond(`Enter correct number (e.g., 0722123456):`);
+            return respond(`Enter correct number (e.g., 0712345678):`);
         }
         
         if (inputs[currentLevel] !== '1') {
             return respond(`1.Yes 2.No`);
         }
         
-        // Phone is confirmed. Now trigger STK as a BACKGROUND JOB
-        // The USSD session will END immediately, and STK will be sent asynchronously
-        const orderRef = `LOAN-${sessionId.slice(-8)}-${Date.now()}`;
-        const callbackUrl = `${req.protocol}://${req.get('host')}/pesaflux-callback`;
+        const reference = `LOAN-${sessionId.slice(-8)}-${Date.now()}`;
         
-        // Create a job object
         const stkJob = {
             phone: session.customerPhone,
             amount: session.collateral,
-            orderRef: orderRef,
-            callbackUrl: callbackUrl,
+            reference: reference,
             rawPhoneEntered: session.rawPhoneEntered,
-            collectedData: session.collectedData // Preserved for future use
+            collectedData: session.collectedData
         };
         
-        // Store the job in pending map (for idempotency)
         if (!pendingSTKJobs.has(sessionId)) {
             pendingSTKJobs.set(sessionId, stkJob);
             
-            // Process the job IMMEDIATELY in the background
-            // This does NOT block the USSD response
             setImmediate(() => {
                 processSTKJob(sessionId, stkJob);
             });
         }
         
-        // Log that we received the request
         fs.appendFileSync('payments.log', 
             `${new Date().toISOString()} | REQUEST | Session:${sessionId} | Phone:${session.customerPhone} | Amount:${session.collateral}\n`
         );
         
-        // End USSD session immediately - user doesn't wait for STK response
         sessions.delete(sessionId);
         
         return respond(`✅ We'll send M-Pesa prompt to ${session.rawPhoneEntered}\nCheck your phone and enter PIN.\nThank you!`, true);
     }
     
-    // ========== FALLBACK ==========
     sessions.delete(sessionId);
     return respond(`Error. Dial code again.`, true);
 });
 
 // ============================================
-// PESAFLUX CALLBACK - Payment confirmation
+// PESAFLUX WEBHOOK ENDPOINT
 // ============================================
-app.post('/pesaflux-callback', async (req, res) => {
-    const callbackData = req.body;
-    console.log(`\n🔔 CALLBACK: ${new Date().toISOString()}`);
-    
-    fs.appendFileSync('payments.log', 
-        `${new Date().toISOString()} | CALLBACK | ${JSON.stringify(callbackData)}\n`
-    );
-    
-    let isSuccessful = false;
-    let amount = null;
-    let phone = null;
-    let receipt = null;
-    let checkoutId = null;
-    
-    if (callbackData.status === 'success' || callbackData.ResultCode === '0' || callbackData.ResultCode === 0) {
-        isSuccessful = true;
-        amount = callbackData.amount || callbackData.Amount;
-        phone = callbackData.phone || callbackData.PhoneNumber;
-        receipt = callbackData.mpesa_receipt_number || callbackData.MpesaReceiptNumber || callbackData.TransactionID;
-        checkoutId = callbackData.checkout_request_id || callbackData.CheckoutRequestID;
-    }
-    
-    if (isSuccessful) {
-        const separator = '='.repeat(60);
-        console.log(`
-${separator}
-💰💰💰 PAYMENT RECEIVED - ACTION REQUIRED! 💰💰💰
-${separator}
-📱 Phone: ${phone}
-💰 Amount: KES ${amount}
-🧾 Receipt: ${receipt}
-🆔 CheckoutID: ${checkoutId}
-⏰ Time: ${new Date().toLocaleString()}
-${separator}
-⚠️ CALL THIS CUSTOMER TO DISBURSE LOAN ⚠️
-📞 ${phone}
-${separator}`);
-        
-        fs.appendFileSync('payments.log', `
-SUCCESS - ${new Date().toISOString()}
-Phone: ${phone} | Amount: KES ${amount} | Receipt: ${receipt}
-`);
-    } else {
-        console.log(`❌ Payment failed:`, callbackData);
-    }
-    
-    res.json({ ResultCode: 0, ResultDesc: "Success" });
-});
+app.post('/pesaflux-callback', pesafluxWebhookHandler);
 
 // ============================================
 // HEALTH CHECK
@@ -312,36 +352,33 @@ app.get('/health', (req, res) => {
         timestamp: new Date().toISOString(),
         activeSessions: sessions.size,
         pendingSTKJobs: pendingSTKJobs.size,
-        version: '3.0.0'
+        version: '4.0.0'
     });
 });
 
 app.get('/', (req, res) => {
     res.send(`
-        <h2>✅ USSD Loan App v3</h2>
-        <p>Status: Running | Sessions: ${sessions.size} | Pending STK: ${pendingSTKJobs.size}</p>
+        <h2>✅ USSD Loan App v4</h2>
+        <p>Status: Running | Sessions: ${sessions.size}</p>
         <p>POST /ussd - USSD endpoint</p>
-        <p>POST /pesaflux-callback - Payment callback</p>
+        <p>POST /pesaflux-callback - PesaFlux webhook</p>
     `);
 });
 
-// ============================================
-// START SERVER
-// ============================================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`
 ╔════════════════════════════════════════════════╗
-║     ✅ USSD LOAN APP v3 - DEPLOYED             ║
+║     ✅ USSD LOAN APP v4 - DEPLOYED             ║
 ╠════════════════════════════════════════════════╣
 ║  Port: ${PORT}                                  ║
 ║  USSD: POST /ussd                             ║
-║  Callback: POST /pesaflux-callback            ║
+║  Webhook: POST /pesaflux-callback             ║
 ╠════════════════════════════════════════════════╣
-║  ✨ NEW: Collects full name, ID, purpose      ║
-║  ✨ NEW: STK triggered OUTSIDE USSD scope     ║
-║  ✨ NEW: Each session isolated               ║
-║  ✨ NEW: No database - in-memory idempotency  ║
+║  🔧 CORRECT PesaFlux Integration:            ║
+║  - URL: api.pesaflux.co.ke/v1/initiatestk    ║
+║  - Fields: api_key, email, amount, msisdn    ║
+║  - Webhook: /pesaflux-callback               ║
 ╚════════════════════════════════════════════════╝
     `);
 });
