@@ -1,0 +1,2023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TRAVIS — Your Financial Intelligence System</title>
+<link href="https://fonts.googleapis.com/css2?family=Tahoma:wght@400;700&family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --xp-blue: #0A246A;
+  --xp-blue-mid: #3C6FC4;
+  --xp-blue-light: #6B9EE8;
+  --xp-taskbar: #1F3D7A;
+  --xp-title-grad: linear-gradient(180deg, #5C8EE6 0%, #0A246A 100%);
+  --xp-title-grad-active: linear-gradient(180deg, #4080D0 0%, #0A246A 100%);
+  --xp-window-bg: #ECE9D8;
+  --xp-green: #3DA940;
+  --xp-green-dark: #2B7A30;
+  --xp-silver: #D4D0C8;
+  --xp-border-light: #FFFFFF;
+  --xp-border-dark: #808080;
+  --xp-border-darker: #404040;
+  --xp-text: #1A1A1A;
+  --xp-gold: #F5A623;
+  --xp-red: #CC0000;
+  --desktop-bg: linear-gradient(135deg, #1E3A5F 0%, #0A246A 30%, #2E7D32 70%, #1B5E20 100%);
+  --font-main: 'Tahoma', 'MS Sans Serif', Geneva, sans-serif;
+  --font-mono: 'Share Tech Mono', 'Courier New', monospace;
+  --font-display: 'VT323', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-main);
+  background: var(--desktop-bg);
+  min-height: 100vh;
+  overflow-x: hidden;
+  cursor: default;
+  user-select: none;
+}
+
+.desktop {
+  min-height: 100vh;
+  padding-bottom: 48px;
+  position: relative;
+  overflow: hidden;
+}
+
+.desktop::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: 
+    radial-gradient(ellipse 60% 40% at 20% 80%, rgba(61,169,64,0.25) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 60% at 80% 20%, rgba(92,142,230,0.3) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 30% at 50% 50%, rgba(10,36,106,0.4) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.taskbar {
+  position: fixed;
+  bottom: 0;
+  left: 0; right: 0;
+  height: 48px;
+  background: linear-gradient(180deg, #2557B7 0%, #1C45A5 6%, #1537A5 10%, #1C50C8 45%, #1A47BE 46%, #1537A5 100%);
+  border-top: 2px solid #6B8FD4;
+  display: flex;
+  align-items: center;
+  z-index: 9999;
+  box-shadow: 0 -2px 8px rgba(0,0,0,0.5);
+}
+
+.start-btn {
+  height: 40px;
+  margin: 0 4px;
+  padding: 0 14px 0 6px;
+  background: linear-gradient(180deg, #5C8EE6 0%, #3DA940 50%, #2B7A30 100%);
+  border: 2px solid;
+  border-color: #78B040 #2B7A30 #2B7A30 #78B040;
+  border-radius: 0 14px 14px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-family: var(--font-main);
+  font-weight: 700;
+  font-size: 14px;
+  color: white;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+  letter-spacing: 0.5px;
+  transition: filter 0.1s;
+}
+.start-btn:hover { filter: brightness(1.15); }
+.start-btn:active { filter: brightness(0.9); }
+
+.start-orb {
+  width: 26px; height: 26px;
+  background: radial-gradient(circle at 35% 35%, #7CD665, #2B7A30);
+  border-radius: 50%;
+  border: 1px solid #1A5A1A;
+  box-shadow: 0 0 6px rgba(60,200,60,0.5);
+}
+
+.taskbar-divider { width: 2px; height: 36px; background: rgba(0,0,0,0.3); margin: 0 4px; border-right: 1px solid rgba(255,255,255,0.1); }
+
+.taskbar-btn {
+  height: 36px;
+  padding: 0 10px;
+  background: linear-gradient(180deg, #2B5FCC 0%, #1A3FAA 100%);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 3px;
+  color: white;
+  font-size: 11px;
+  font-family: var(--font-main);
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.taskbar-btn:hover { background: linear-gradient(180deg, #3D74DE 0%, #2855CC 100%); }
+
+.taskbar-clock {
+  margin-left: auto;
+  margin-right: 4px;
+  background: linear-gradient(180deg, #1A3A8F 0%, #0D2870 100%);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 3px;
+  padding: 4px 10px;
+  color: white;
+  font-size: 11px;
+  text-align: center;
+  min-width: 80px;
+}
+
+.desktop-icons {
+  position: fixed;
+  top: 20px;
+  left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  z-index: 100;
+}
+
+.desktop-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  width: 72px;
+  text-align: center;
+  padding: 4px;
+  border-radius: 2px;
+  transition: background 0.1s;
+}
+.desktop-icon:hover { background: rgba(100,150,255,0.3); }
+.desktop-icon:active { background: rgba(100,150,255,0.5); }
+
+.desktop-icon .ico {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.6));
+}
+
+.desktop-icon .ico-label {
+  font-size: 11px;
+  color: white;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.8);
+  font-family: var(--font-main);
+  word-break: break-word;
+  line-height: 1.2;
+}
+
+.window {
+  position: relative;
+  border-radius: 8px 8px 4px 4px;
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.3), 4px 4px 12px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.4);
+  overflow: hidden;
+  margin: 0 auto;
+}
+
+.window-titlebar {
+  height: 30px;
+  background: var(--xp-title-grad);
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  gap: 6px;
+  border-radius: 7px 7px 0 0;
+}
+
+.window-icon { font-size: 14px; }
+
+.window-title {
+  font-family: var(--font-main);
+  font-weight: 700;
+  font-size: 12px;
+  color: white;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.6);
+  flex: 1;
+}
+
+.win-btns {
+  display: flex;
+  gap: 2px;
+}
+
+.win-btn {
+  width: 21px;
+  height: 21px;
+  border-radius: 3px;
+  border: 1px solid rgba(0,0,0,0.4);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-main);
+  color: #1A1A1A;
+}
+
+.win-btn.min { background: linear-gradient(180deg, #E8E4DC 0%, #C0BDB4 100%); }
+.win-btn.max { background: linear-gradient(180deg, #E8E4DC 0%, #C0BDB4 100%); }
+.win-btn.close { background: linear-gradient(180deg, #E05050 0%, #C03030 100%); color: white; font-size: 13px; }
+.win-btn:hover { filter: brightness(1.15); }
+.win-btn:active { filter: brightness(0.9); }
+
+.window-body {
+  background: var(--xp-window-bg);
+  border: 2px solid;
+  border-color: #FFFFFF #808080 #808080 #FFFFFF;
+}
+
+.menubar {
+  background: var(--xp-window-bg);
+  border-bottom: 1px solid #ACA899;
+  padding: 2px 4px;
+  display: flex;
+  gap: 2px;
+}
+
+.menu-item {
+  padding: 2px 8px;
+  font-size: 12px;
+  font-family: var(--font-main);
+  cursor: pointer;
+  border-radius: 2px;
+  color: var(--xp-text);
+}
+.menu-item:hover { background: var(--xp-blue-mid); color: white; }
+
+.xp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 20px;
+  font-family: var(--font-main);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 4px;
+  border: 2px solid;
+  border-color: #B0D0FF #0A246A #0A246A #B0D0FF;
+  background: linear-gradient(180deg, #5C8EE6 0%, #3C6FC4 40%, #1C4FAA 60%, #3C6FC4 100%);
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+  transition: all 0.1s;
+  text-decoration: none;
+}
+.xp-btn:hover {
+  background: linear-gradient(180deg, #78A8FF 0%, #5888DE 40%, #2B5FCC 60%, #5888DE 100%);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.4);
+}
+.xp-btn:active {
+  background: linear-gradient(180deg, #2B5FCC 0%, #1C4FAA 100%);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+}
+
+.xp-btn.green {
+  border-color: #78C040 #1A6020 #1A6020 #78C040;
+  background: linear-gradient(180deg, #68C040 0%, #3DA940 40%, #1E7A20 60%, #3DA940 100%);
+}
+.xp-btn.green:hover {
+  background: linear-gradient(180deg, #88D060 0%, #55C050 40%, #2B9030 60%, #55C050 100%);
+}
+
+.xp-btn.gold {
+  border-color: #FFD070 #A06010 #A06010 #FFD070;
+  background: linear-gradient(180deg, #FFD060 0%, #F5A623 40%, #C07810 60%, #F5A623 100%);
+  color: #1A1A1A;
+  text-shadow: none;
+}
+.xp-btn.gold:hover {
+  background: linear-gradient(180deg, #FFE080 0%, #FFC040 40%, #D08820 60%, #FFC040 100%);
+}
+
+.xp-btn.large {
+  padding: 12px 32px;
+  font-size: 15px;
+  border-radius: 6px;
+}
+
+.xp-panel {
+  background: var(--xp-window-bg);
+  border: 2px solid;
+  border-color: #FFFFFF #808080 #808080 #FFFFFF;
+  padding: 12px;
+  border-radius: 4px;
+}
+
+.xp-groupbox {
+  border: 2px solid;
+  border-color: #808080 #FFFFFF #FFFFFF #808080;
+  border-radius: 4px;
+  padding: 16px 16px 16px;
+  position: relative;
+  margin-top: 12px;
+}
+
+.xp-groupbox-title {
+  position: absolute;
+  top: -10px;
+  left: 10px;
+  background: var(--xp-window-bg);
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--font-main);
+  color: var(--xp-text);
+}
+
+.statusbar {
+  background: var(--xp-window-bg);
+  border-top: 2px solid;
+  border-color: #808080 #FFFFFF #FFFFFF #808080;
+  padding: 3px 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  font-family: var(--font-main);
+  color: var(--xp-text);
+}
+
+.status-section {
+  padding: 1px 6px;
+  border: 1px solid;
+  border-color: #808080 #FFFFFF #FFFFFF #808080;
+  font-size: 11px;
+}
+
+::-webkit-scrollbar { width: 16px; }
+::-webkit-scrollbar-track { background: #C0C0C0; border: 1px solid; border-color: #808080 #FFFFFF #FFFFFF #808080; }
+::-webkit-scrollbar-thumb { background: linear-gradient(90deg, #D4D0C8 0%, #F0EDE5 30%, #D4D0C8 70%, #A0A0A0 100%); border: 1px solid; border-color: #FFFFFF #808080 #808080 #FFFFFF; }
+::-webkit-scrollbar-button { background: #D4D0C8; border: 1px solid; border-color: #FFFFFF #808080 #808080 #FFFFFF; height: 16px; }
+
+.xp-progress {
+  background: #FFFFFF;
+  border: 2px solid;
+  border-color: #808080 #FFFFFF #FFFFFF #808080;
+  height: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.xp-progress-fill {
+  height: 100%;
+  background: repeating-linear-gradient(90deg, #3C6FC4 0px, #3C6FC4 18px, #5C8EE6 18px, #5C8EE6 20px);
+  transition: width 1s ease;
+}
+
+.xp-tooltip {
+  background: #FFFFE1;
+  border: 1px solid #808080;
+  padding: 3px 6px;
+  font-size: 11px;
+  font-family: var(--font-main);
+  box-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+  position: absolute;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 1000;
+}
+
+.xp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-family: var(--font-main);
+}
+.xp-table th {
+  background: linear-gradient(180deg, #D4D0C8 0%, #BFB9AE 100%);
+  border: 2px solid;
+  border-color: #FFFFFF #808080 #808080 #FFFFFF;
+  padding: 4px 8px;
+  text-align: left;
+  font-weight: 700;
+  color: var(--xp-text);
+}
+.xp-table td {
+  border-bottom: 1px solid #C0BDB4;
+  padding: 5px 8px;
+  color: var(--xp-text);
+}
+.xp-table tr:nth-child(even) td { background: #F0EDE5; }
+.xp-table tr:hover td { background: #C2D8FF; }
+
+.main-container {
+  position: relative;
+  z-index: 10;
+  padding: 20px 16px 60px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.hero-window {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto 24px;
+}
+
+.hero-content {
+  padding: 24px;
+  background: linear-gradient(135deg, #E8EAF0 0%, #ECE9D8 60%, #E0E8F8 100%);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: center;
+}
+
+.hero-left h1 {
+  font-family: var(--font-display);
+  font-size: 68px;
+  line-height: 1;
+  color: var(--xp-blue);
+  letter-spacing: 2px;
+  text-shadow: 2px 2px 0 rgba(10,36,106,0.15);
+}
+
+.hero-left .subtitle {
+  font-family: var(--font-main);
+  font-size: 13px;
+  font-weight: 700;
+  color: #1A5A1A;
+  margin-top: 4px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border-left: 3px solid var(--xp-green);
+  padding-left: 8px;
+}
+
+.hero-left .tagline {
+  margin-top: 12px;
+  font-size: 13px;
+  color: #333;
+  line-height: 1.5;
+  max-width: 340px;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(90deg, #1A6020 0%, #3DA940 100%);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 12px;
+  border: 1px solid #5DBA40;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+
+.hero-screen {
+  background: #000;
+  border: 3px solid;
+  border-color: #404040 #C0C0C0 #C0C0C0 #404040;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 4px 4px 12px rgba(0,0,0,0.4);
+  position: relative;
+  aspect-ratio: 4/3;
+}
+
+.hero-screen-inner {
+  background: linear-gradient(135deg, #0A246A 0%, #1E3D8F 50%, #0D1F5C 100%);
+  width: 100%;
+  height: 100%;
+  padding: 12px;
+  font-family: var(--font-mono);
+  color: #00FF88;
+  font-size: 10px;
+  overflow: hidden;
+}
+
+.terminal-line { line-height: 1.6; opacity: 0; animation: termType 0.3s forwards; }
+.terminal-line:nth-child(1)  { animation-delay: 0.2s; }
+.terminal-line:nth-child(2)  { animation-delay: 0.7s; }
+.terminal-line:nth-child(3)  { animation-delay: 1.1s; }
+.terminal-line:nth-child(4)  { animation-delay: 1.5s; }
+.terminal-line:nth-child(5)  { animation-delay: 1.9s; }
+.terminal-line:nth-child(6)  { animation-delay: 2.3s; }
+.terminal-line:nth-child(7)  { animation-delay: 2.7s; }
+.terminal-line:nth-child(8)  { animation-delay: 3.1s; }
+.terminal-line:nth-child(9)  { animation-delay: 3.5s; }
+.terminal-line:nth-child(10) { animation-delay: 3.9s; }
+.terminal-line:nth-child(11) { animation-delay: 4.3s; }
+.terminal-line:nth-child(12) { animation-delay: 4.7s; }
+
+.terminal-line.yellow { color: #FFD060; }
+.terminal-line.cyan   { color: #00FFFF; }
+.terminal-line.white  { color: #E0E8FF; }
+.terminal-line.green  { color: #00FF88; }
+.terminal-line.pink   { color: #FF80CC; }
+
+@keyframes termType {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.cursor-blink {
+  display: inline-block;
+  width: 8px; height: 13px;
+  background: #00FF88;
+  animation: blink 1s infinite;
+  vertical-align: middle;
+}
+@keyframes blink { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }
+
+.screen-scanline {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
+  pointer-events: none;
+}
+
+.windows-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.windows-grid-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.info-window {
+  width: 100%;
+}
+
+.info-window-body {
+  padding: 16px;
+  min-height: 120px;
+}
+
+.info-window-body h3 {
+  font-family: var(--font-main);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--xp-blue);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.info-window-body p {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #333;
+}
+
+.bullet-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.bullet-list li {
+  font-size: 12px;
+  color: #333;
+  padding: 3px 0;
+  display: flex;
+  gap: 6px;
+  line-height: 1.4;
+}
+
+.bullet-list li::before {
+  content: '▶';
+  color: var(--xp-blue-mid);
+  font-size: 9px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.xp-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: -2px;
+  position: relative;
+  z-index: 2;
+}
+
+.xp-tab {
+  padding: 4px 16px;
+  font-size: 12px;
+  font-family: var(--font-main);
+  cursor: pointer;
+  background: linear-gradient(180deg, #E0DDD5 0%, #C8C5BC 100%);
+  border: 2px solid;
+  border-color: #FFFFFF #808080 #808080 #FFFFFF;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  margin-right: 2px;
+  color: #555;
+  transition: all 0.1s;
+}
+
+.xp-tab.active {
+  background: var(--xp-window-bg);
+  color: var(--xp-text);
+  font-weight: 700;
+  border-bottom: 2px solid var(--xp-window-bg);
+  padding-bottom: 6px;
+}
+
+.xp-tab-content {
+  display: none;
+  padding: 16px;
+}
+.xp-tab-content.active { display: block; }
+
+.comparison-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 2px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.badge-yes { background: #C8E8C0; color: #1A6020; border: 1px solid #6AB060; }
+.badge-no  { background: #F0C0C0; color: #8B0000; border: 1px solid #D08080; }
+.badge-na  { background: #E8E8C0; color: #707020; border: 1px solid #C8C880; }
+
+.pricing-highlight {
+  background: linear-gradient(135deg, #0A246A 0%, #1E4FAA 100%);
+  border: 3px solid;
+  border-color: #78A8FF #0A246A #0A246A #78A8FF;
+  border-radius: 6px;
+  padding: 20px;
+  text-align: center;
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.pricing-highlight::before {
+  content: '';
+  position: absolute;
+  top: -30px; right: -30px;
+  width: 100px; height: 100px;
+  background: radial-gradient(circle, rgba(255,255,255,0.15), transparent 70%);
+  border-radius: 50%;
+}
+
+.price-amount {
+  font-family: var(--font-display);
+  font-size: 64px;
+  color: #FFD060;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+  line-height: 1;
+}
+
+.price-label {
+  font-size: 12px;
+  color: rgba(255,255,255,0.8);
+  margin-top: 4px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.fomo-box {
+  background: linear-gradient(135deg, #8B0000 0%, #CC2020 100%);
+  border: 2px solid;
+  border-color: #FF8080 #800000 #800000 #FF8080;
+  border-radius: 4px;
+  padding: 12px 16px;
+  color: white;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 12px;
+  animation: pulse-red 2s infinite;
+}
+@keyframes pulse-red {
+  0%,100% { box-shadow: 0 0 0 rgba(200,0,0,0); }
+  50%      { box-shadow: 0 0 16px rgba(200,0,0,0.5); }
+}
+
+.fomo-box strong { font-size: 14px; display: block; margin-bottom: 4px; }
+
+.module-card {
+  padding: 16px;
+  border: 2px solid;
+  margin-bottom: 8px;
+}
+
+.module-card.business {
+  border-color: #808080 #FFFFFF #FFFFFF #808080;
+  background: linear-gradient(135deg, #E8F0FF 0%, #D0E0F8 100%);
+}
+
+.module-card.personal {
+  border-color: #808080 #FFFFFF #FFFFFF #808080;
+  background: linear-gradient(135deg, #E8FFE8 0%, #D0F0D0 100%);
+}
+
+.module-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.module-card h4 {
+  font-family: var(--font-main);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--xp-blue);
+  margin-bottom: 6px;
+}
+
+.module-card p {
+  font-size: 12px;
+  color: #333;
+  line-height: 1.5;
+}
+
+.offline-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(90deg, #1A1A1A 0%, #2A2A2A 100%);
+  border: 2px solid;
+  border-color: #FFFFFF #404040 #404040 #FFFFFF;
+  border-radius: 4px;
+  padding: 10px 14px;
+  color: #00FF88;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.offline-dot {
+  width: 10px; height: 10px;
+  background: #00FF88;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #00FF88;
+  animation: pulse-green 1.5s infinite;
+}
+@keyframes pulse-green {
+  0%,100% { box-shadow: 0 0 4px #00FF88; }
+  50%      { box-shadow: 0 0 14px #00FF88, 0 0 28px rgba(0,255,136,0.4); }
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.stat-box {
+  background: white;
+  border: 2px solid;
+  border-color: #808080 #FFFFFF #FFFFFF #808080;
+  padding: 10px;
+  text-align: center;
+}
+
+.stat-num {
+  font-family: var(--font-display);
+  font-size: 32px;
+  color: var(--xp-blue);
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 10px;
+  color: #555;
+  margin-top: 4px;
+  font-family: var(--font-main);
+}
+
+.testimonial-card {
+  background: white;
+  border: 2px solid;
+  border-color: #FFFFFF #808080 #808080 #FFFFFF;
+  padding: 12px;
+  border-radius: 2px;
+  margin-bottom: 8px;
+}
+
+.testimonial-card .tname {
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--xp-blue);
+  margin-bottom: 4px;
+}
+
+.testimonial-card .ttext {
+  font-size: 12px;
+  font-style: italic;
+  color: #333;
+  line-height: 1.5;
+}
+
+.stars { color: #F5A623; font-size: 13px; }
+
+.xp-notification {
+  position: fixed;
+  bottom: 56px;
+  right: 8px;
+  width: 290px;
+  background: var(--xp-window-bg);
+  border: 2px solid;
+  border-color: #FFFFFF #808080 #808080 #FFFFFF;
+  box-shadow: 2px 2px 8px rgba(0,0,0,0.4);
+  z-index: 9000;
+  border-radius: 4px 4px 0 0;
+  overflow: hidden;
+  transform: translateY(120%);
+  transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+.xp-notification.show { transform: translateY(0); }
+
+.notif-titlebar {
+  background: var(--xp-title-grad);
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.notif-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: white;
+  flex: 1;
+  font-family: var(--font-main);
+}
+
+.notif-close {
+  width: 16px; height: 16px;
+  background: linear-gradient(180deg, #E05050 0%, #C03030 100%);
+  border: 1px solid rgba(0,0,0,0.4);
+  color: white;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 2px;
+  font-weight: 700;
+}
+
+.notif-body {
+  padding: 8px 10px;
+  font-size: 11px;
+  font-family: var(--font-main);
+  color: #333;
+  line-height: 1.5;
+  display: flex;
+  gap: 8px;
+}
+
+.notif-icon { font-size: 24px; flex-shrink: 0; }
+
+#loading-screen {
+  position: fixed;
+  inset: 0;
+  background: #0A246A;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  transition: opacity 0.6s;
+}
+
+#loading-screen.fade-out { opacity: 0; pointer-events: none; }
+
+.loading-logo {
+  font-family: var(--font-display);
+  font-size: 80px;
+  color: white;
+  text-shadow: 0 0 40px rgba(100,150,255,0.8);
+  letter-spacing: 4px;
+}
+
+.loading-sub {
+  font-family: var(--font-main);
+  color: rgba(255,255,255,0.7);
+  font-size: 13px;
+  letter-spacing: 2px;
+}
+
+.loading-bar-wrap {
+  width: 300px;
+  background: #1A3A8F;
+  border: 2px solid #4060C0;
+  height: 22px;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.loading-bar-fill {
+  height: 100%;
+  background: repeating-linear-gradient(90deg, #4080D0 0px, #6090E0 18px, #4080D0 18px, #4080D0 20px);
+  width: 0%;
+  animation: loadFill 2.5s ease forwards;
+}
+
+@keyframes loadFill {
+  0%   { width: 0%; }
+  40%  { width: 60%; }
+  70%  { width: 80%; }
+  90%  { width: 95%; }
+  100% { width: 100%; }
+}
+
+.loading-dots {
+  color: rgba(255,255,255,0.6);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.section-gap { height: 20px; }
+
+.footer-content {
+  padding: 16px;
+  text-align: center;
+}
+
+.footer-content p {
+  font-size: 11px;
+  color: #555;
+  font-family: var(--font-main);
+}
+
+.ticker-wrap {
+  background: #000;
+  border-top: 1px solid #00FF88;
+  border-bottom: 1px solid #00FF88;
+  overflow: hidden;
+  height: 24px;
+  margin: 0;
+}
+
+.ticker {
+  display: flex;
+  animation: ticker 30s linear infinite;
+  white-space: nowrap;
+}
+
+.ticker span {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #00FF88;
+  padding: 4px 40px 4px 0;
+}
+
+@keyframes ticker {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@media (max-width: 900px) {
+  .windows-grid { grid-template-columns: 1fr; }
+  .windows-grid-3 { grid-template-columns: 1fr 1fr; }
+  .hero-content { grid-template-columns: 1fr; }
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .windows-grid-3 { grid-template-columns: 1fr; }
+  .hero-left h1 { font-size: 48px; }
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .price-amount { font-size: 48px; }
+  .xp-tabs { flex-wrap: wrap; }
+  .desktop-icons { display: none; }
+  .main-container { padding: 10px 8px 60px; }
+}
+
+@media (max-width: 400px) {
+  .hero-left h1 { font-size: 38px; }
+  .stats-row { grid-template-columns: 1fr 1fr; }
+}
+
+.window:hover {
+  box-shadow: 3px 3px 2px rgba(0,0,0,0.3), 6px 6px 16px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.4);
+  transition: box-shadow 0.2s;
+}
+
+.window.active .window-titlebar {
+  background: var(--xp-title-grad-active);
+}
+
+.alert-blink {
+  animation: alertBlink 1.2s infinite;
+}
+@keyframes alertBlink {
+  0%,100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+
+.window-titlebar { cursor: move; }
+</style>
+</head>
+<body>
+
+<div id="loading-screen">
+  <div class="loading-logo">TRAVIS</div>
+  <div class="loading-sub">Financial Intelligence System v1.0 — Kenya</div>
+  <div class="loading-bar-wrap">
+    <div class="loading-bar-fill"></div>
+  </div>
+  <div class="loading-dots" id="loading-dots">Loading core modules...</div>
+</div>
+
+<div class="desktop" id="desktop">
+
+  <div class="desktop-icons">
+    <div class="desktop-icon" onclick="window.location='travis_core.html'">
+      <div class="ico">💹</div>
+      <div class="ico-label">TRAVIS Core</div>
+    </div>
+    <div class="desktop-icon" onclick="scrollToSection('modules')">
+      <div class="ico">🏢</div>
+      <div class="ico-label">My Account</div>
+    </div>
+    <div class="desktop-icon" onclick="scrollToSection('pricing')">
+      <div class="ico">🪙</div>
+      <div class="ico-label">Pricing</div>
+    </div>
+    <div class="desktop-icon" onclick="scrollToSection('why-us')">
+      <div class="ico">📊</div>
+      <div class="ico-label">Why TRAVIS</div>
+    </div>
+  </div>
+
+  <div class="main-container">
+
+    <div class="ticker-wrap">
+      <div class="ticker">
+        <span>🟢 KES SAVINGS PROTECTED &nbsp;|&nbsp;</span>
+        <span>📈 BUSINESS CASHFLOW TRACKED &nbsp;|&nbsp;</span>
+        <span>🤖 AI-POWERED PREDICTIONS &nbsp;|&nbsp;</span>
+        <span>📵 100% OFFLINE — NO INTERNET NEEDED &nbsp;|&nbsp;</span>
+        <span>🇰🇪 BUILT FOR KENYA &nbsp;|&nbsp;</span>
+        <span>🔒 YOUR DATA STAYS ON YOUR DEVICE &nbsp;|&nbsp;</span>
+        <span>⚡ ONE-TIME PURCHASE — NO MONTHLY FEES &nbsp;|&nbsp;</span>
+        <span>💼 BUSINESS + PERSONAL IN ONE APP &nbsp;|&nbsp;</span>
+        <span>🟢 KES SAVINGS PROTECTED &nbsp;|&nbsp;</span>
+        <span>📈 BUSINESS CASHFLOW TRACKED &nbsp;|&nbsp;</span>
+        <span>🤖 AI-POWERED PREDICTIONS &nbsp;|&nbsp;</span>
+        <span>📵 100% OFFLINE — NO INTERNET NEEDED &nbsp;|&nbsp;</span>
+        <span>🇰🇪 BUILT FOR KENYA &nbsp;|&nbsp;</span>
+        <span>🔒 YOUR DATA STAYS ON YOUR DEVICE &nbsp;|&nbsp;</span>
+        <span>⚡ ONE-TIME PURCHASE — NO MONTHLY FEES &nbsp;|&nbsp;</span>
+        <span>💼 BUSINESS + PERSONAL IN ONE APP &nbsp;|&nbsp;</span>
+      </div>
+    </div>
+
+    <div class="section-gap"></div>
+
+    <div class="window hero-window active" id="hero-win">
+      <div class="window-titlebar">
+        <span class="window-icon">💹</span>
+        <span class="window-title">TRAVIS Financial Intelligence System — Welcome</span>
+        <div class="win-btns">
+          <div class="win-btn min" title="Minimize">_</div>
+          <div class="win-btn max" title="Maximize">□</div>
+          <div class="win-btn close" onclick="window.location='travis_core.html'" title="Launch TRAVIS">✕</div>
+        </div>
+      </div>
+      <div class="menubar">
+        <span class="menu-item">File</span>
+        <span class="menu-item">View</span>
+        <span class="menu-item" onclick="scrollToSection('modules')">Modules</span>
+        <span class="menu-item" onclick="scrollToSection('pricing')">Purchase</span>
+        <span class="menu-item" onclick="window.location='travis_core.html'">Launch TRAVIS</span>
+        <span class="menu-item">Help</span>
+      </div>
+      <div class="window-body">
+        <div class="hero-content">
+          <div class="hero-left">
+            <h1>TRAVIS</h1>
+            <div class="subtitle">Your Financial Intelligence System</div>
+            <p class="tagline">
+              The smart financial companion built for Kenyans — tracking every shilling, predicting your financial future, and advising you like a personal CFO. For your business. For your pocket. For your life.
+            </p>
+            <div class="hero-badge">
+              🇰🇪 &nbsp; Made for Kenya. Trusted Across East Africa.
+            </div>
+            <br/>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
+              <button class="xp-btn green large" onclick="window.location='travis_core.html'">
+                ▶ Launch TRAVIS
+              </button>
+              <button class="xp-btn large" onclick="scrollToSection('about')">
+                📖 Learn More
+              </button>
+            </div>
+          </div>
+          <div class="hero-right">
+            <div class="hero-screen">
+              <div class="hero-screen-inner">
+                <div class="terminal-line yellow">TRAVIS Financial Core v1.0</div>
+                <div class="terminal-line yellow">Initializing Kenya Financial Module...</div>
+                <div class="terminal-line cyan">▶ Loading Business Account Tracker...</div>
+                <div class="terminal-line cyan">▶ Loading Personal Finance Module...</div>
+                <div class="terminal-line green">✓ AI Prediction Engine: READY</div>
+                <div class="terminal-line green">✓ Offline Mode: ENABLED</div>
+                <div class="terminal-line green">✓ Data Encryption: ACTIVE</div>
+                <div class="terminal-line white">Scanning financial patterns...</div>
+                <div class="terminal-line pink">⚠ 3 Savings Opportunities Detected</div>
+                <div class="terminal-line pink">⚠ Predicted Cash Gap: Q2 Week 3</div>
+                <div class="terminal-line yellow">💡 TRAVIS Recommendation Ready</div>
+                <div class="terminal-line green">Ready. <span class="cursor-blink"></span></div>
+              </div>
+              <div class="screen-scanline"></div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:12px 24px;background:#D4D0C8;border-top:1px solid #ACA899;">
+          <div class="stats-row">
+            <div class="stat-box">
+              <div class="stat-num">2</div>
+              <div class="stat-label">Smart Modules</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-num">100%</div>
+              <div class="stat-label">Offline</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-num">0</div>
+              <div class="stat-label">Monthly Fees</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-num">∞</div>
+              <div class="stat-label">Lifetime Access</div>
+            </div>
+          </div>
+        </div>
+        <div class="statusbar">
+          <div class="status-section">✅ System Ready</div>
+          <div class="status-section">🔒 Secure</div>
+          <div class="status-section">📵 Offline Mode</div>
+          <div class="status-section" style="margin-left:auto;">TRAVIS v1.0 © 2025 — Kenya</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-gap" id="about"></div>
+
+    <div class="windows-grid">
+      <div class="window info-window">
+        <div class="window-titlebar">
+          <span class="window-icon">📋</span>
+          <span class="window-title">About TRAVIS — What Is This?</span>
+          <div class="win-btns">
+            <div class="win-btn min">_</div>
+            <div class="win-btn max">□</div>
+            <div class="win-btn close">✕</div>
+          </div>
+        </div>
+        <div class="window-body">
+          <div class="info-window-body">
+            <h3>🧠 What Is TRAVIS?</h3>
+            <p>
+              TRAVIS is an <strong>intelligent financial management system</strong> designed specifically for Kenyans. Think of it as having a seasoned CFO, accountant, and financial advisor — all bundled into one powerful app on your phone, tablet, or computer.
+            </p>
+            <br/>
+            <p>
+              Whether you run a <em>mama mboga stall</em>, a logistics company, or just want to manage your personal salary — TRAVIS understands your money, speaks your language, and works <strong>even without internet</strong>.
+            </p>
+            <br/>
+            <div class="offline-badge">
+              <div class="offline-dot"></div>
+              <span>FULLY OFFLINE — Works on all device types</span>
+            </div>
+          </div>
+          <div class="statusbar">
+            <div class="status-section">1 object(s)</div>
+            <div class="status-section">📵 No connection required</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="window info-window">
+        <div class="window-titlebar">
+          <span class="window-icon">❓</span>
+          <span class="window-title">Why Do You Need TRAVIS?</span>
+          <div class="win-btns">
+            <div class="win-btn min">_</div>
+            <div class="win-btn max">□</div>
+            <div class="win-btn close">✕</div>
+          </div>
+        </div>
+        <div class="window-body">
+          <div class="info-window-body">
+            <h3>💡 The Problem We Solve</h3>
+            <ul class="bullet-list">
+              <li>Do you know where your money went at end of month?</li>
+              <li>Is your business making a profit — or just looking busy?</li>
+              <li>Are you unknowingly spending more than you earn?</li>
+              <li>Do you have a plan for unexpected financial emergencies?</li>
+              <li>Are you building wealth — or just surviving paycheck to paycheck?</li>
+            </ul>
+            <br/>
+            <p>If any of these hit close to home, TRAVIS was built <strong>for you</strong>. No more guesswork. No more end-month surprises. Just clarity.</p>
+          </div>
+          <div style="padding:8px 12px;background:#FFF8E0;border-top:1px solid #DDD8B8;">
+            <button class="xp-btn green" style="width:100%" onclick="window.location='travis_core.html'">▶ Try TRAVIS Now — It's Simple</button>
+          </div>
+          <div class="statusbar">
+            <div class="status-section">Financial clarity: 1 click away</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="window" id="features-win">
+      <div class="window-titlebar">
+        <span class="window-icon">⚙️</span>
+        <span class="window-title">TRAVIS Features — What This System Does</span>
+        <div class="win-btns">
+          <div class="win-btn min">_</div>
+          <div class="win-btn max">□</div>
+          <div class="win-btn close">✕</div>
+        </div>
+      </div>
+      <div class="menubar">
+        <div class="xp-tabs" id="feature-tabs">
+          <div class="xp-tab active" onclick="switchTab('track')">📊 Track</div>
+          <div class="xp-tab" onclick="switchTab('advise')">💡 Advise</div>
+          <div class="xp-tab" onclick="switchTab('predict')">🔮 Predict</div>
+          <div class="xp-tab" onclick="switchTab('offline')">📵 Offline</div>
+        </div>
+      </div>
+      <div class="window-body">
+        <div id="tab-track" class="xp-tab-content active">
+          <div class="windows-grid windows-grid-3" style="margin-bottom:0">
+            <div class="xp-groupbox">
+              <span class="xp-groupbox-title">Transaction Tracking</span>
+              <ul class="bullet-list">
+                <li>Log every income & expense in seconds</li>
+                <li>Auto-categorize your spending habits</li>
+                <li>Real-time balance — always current</li>
+                <li>No accounting jargon — just plain Swahili/English</li>
+                <li>Visual spending charts & graphs</li>
+              </ul>
+            </div>
+            <div class="xp-groupbox">
+              <span class="xp-groupbox-title">Business Monitoring</span>
+              <ul class="bullet-list">
+                <li>Track sales, purchases, debts & credits</li>
+                <li>Know your profit/loss at a glance</li>
+                <li>Monitor stock & supplier payments</li>
+                <li>Cash flow statements auto-generated</li>
+                <li>Invoice & receipt management</li>
+              </ul>
+            </div>
+            <div class="xp-groupbox">
+              <span class="xp-groupbox-title">Personal Finance</span>
+              <ul class="bullet-list">
+                <li>Salary, side hustle & M-Pesa tracking</li>
+                <li>Savings goal setting & progress</li>
+                <li>Debt & loan repayment planner</li>
+                <li>Monthly budget vs actual analysis</li>
+                <li>Net worth tracker</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div id="tab-advise" class="xp-tab-content">
+          <div class="xp-panel" style="margin-bottom:12px">
+            <h3 style="font-size:13px;font-weight:700;color:var(--xp-blue);margin-bottom:10px">🧠 TRAVIS Advisory Engine</h3>
+            <p style="font-size:12px;line-height:1.7;color:#333">
+              TRAVIS doesn't just record numbers — it thinks about them. The built-in AI advisor analyses your financial patterns and gives you <strong>actionable, personalised advice</strong> — like a financial expert who knows your exact situation.
+            </p>
+          </div>
+          <div class="windows-grid" style="margin-bottom:0">
+            <div class="xp-groupbox">
+              <span class="xp-groupbox-title">Smart Advice Examples</span>
+              <ul class="bullet-list">
+                <li>"Your food spend is 42% of income — here's how to cut it"</li>
+                <li>"You can save KES 8,000 more each month by shifting these 3 habits"</li>
+                <li>"Your business profit margin dropped 15% — here's why"</li>
+                <li>"Based on your patterns, pay this loan first to save KES 12,000 in interest"</li>
+              </ul>
+            </div>
+            <div class="xp-groupbox">
+              <span class="xp-groupbox-title">Who Benefits Most</span>
+              <ul class="bullet-list">
+                <li>Small business owners needing cash flow clarity</li>
+                <li>Salaried employees wanting to save more</li>
+                <li>Freelancers with irregular income</li>
+                <li>Families managing household budgets</li>
+                <li>Anyone who wants to grow their wealth</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div id="tab-predict" class="xp-tab-content">
+          <div class="xp-panel" style="margin-bottom:12px">
+            <h3 style="font-size:13px;font-weight:700;color:var(--xp-blue);margin-bottom:10px">🔮 Future Financial Prediction</h3>
+            <p style="font-size:12px;line-height:1.7;color:#333">
+              TRAVIS uses your historical data to model your financial future. It identifies risks before they hit, spots cash gaps weeks ahead, and helps you prepare for what's coming — instead of reacting when it's too late.
+            </p>
+          </div>
+          <div class="windows-grid" style="margin-bottom:0">
+            <div class="xp-groupbox">
+              <span class="xp-groupbox-title">Prediction Features</span>
+              <ul class="bullet-list">
+                <li>30/60/90-day financial forecasts</li>
+                <li>Seasonal business revenue prediction</li>
+                <li>Emergency fund sufficiency alerts</li>
+                <li>"What-if" scenario modelling</li>
+                <li>Investment opportunity timing</li>
+              </ul>
+            </div>
+            <div class="xp-groupbox">
+              <span class="xp-groupbox-title">Why Prediction Matters</span>
+              <ul class="bullet-list">
+                <li>Stop being surprised by financial shortfalls</li>
+                <li>Plan big expenses months in advance</li>
+                <li>Know the best time to expand your business</li>
+                <li>Prepare for school fees, rent & emergencies</li>
+                <li>Sleep better knowing you're ahead</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div id="tab-offline" class="xp-tab-content">
+          <div class="xp-panel" style="margin-bottom:12px;background:#0A1A0A;border-color:#00FF88 #006030 #006030 #00FF88;">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="font-size:40px">📵</div>
+              <div>
+                <h3 style="font-size:14px;font-weight:700;color:#00FF88;margin-bottom:6px">100% OFFLINE — Always & Everywhere</h3>
+                <p style="font-size:12px;line-height:1.7;color:#88CC88">
+                  TRAVIS runs <em>entirely on your device</em>. No internet subscription. No cloud. No data charges. Works deep in Kisumu, up in Meru, or anywhere Safaricom has no signal. Your data never leaves your device.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="windows-grid windows-grid-3" style="margin-bottom:0">
+            <div class="xp-groupbox">
+              <span class="xp-groupbox-title">Device Support</span>
+              <ul class="bullet-list">
+                <li>Android phones & tablets</li>
+                <li>iPhone & iPad (iOS)</li>
+                <li>Windows laptops & PCs</li>
+                <li>Mac computers</li>
+                <li>Any browser-capable device</li>
+              </ul>
+            </div>
+            <div class="xp-groupbox">
+              <span class="xp-groupbox-title">Privacy Guarantee</span>
+              <ul class="bullet-list">
+                <li>Data stored locally — only on your device</li>
+                <li>No third-party data sharing</li>
+                <li>No bank login required</li>
+                <li>No subscription account needed</li>
+                <li>You own 100% of your financial data</li>
+              </ul>
+            </div>
+            <div class="xp-groupbox">
+              <span class="xp-groupbox-title">Works Even When</span>
+              <ul class="bullet-list">
+                <li>You have zero mobile data</li>
+                <li>You're in a rural/remote area</li>
+                <li>Power outage (on mobile battery)</li>
+                <li>Your WiFi is down</li>
+                <li>You're travelling internationally</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div style="padding:8px 12px;background:#D4D0C8;border-top:1px solid #ACA899;display:flex;justify-content:flex-end;">
+          <button class="xp-btn green" onclick="window.location='travis_core.html'">▶ Experience TRAVIS Features</button>
+        </div>
+        <div class="statusbar">
+          <div class="status-section">TRAVIS System Features</div>
+          <div class="status-section">All features included</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-gap" id="modules"></div>
+
+    <div class="window">
+      <div class="window-titlebar">
+        <span class="window-icon">🗂️</span>
+        <span class="window-title">TRAVIS Modules — Business Account & Personal Account</span>
+        <div class="win-btns">
+          <div class="win-btn min">_</div>
+          <div class="win-btn max">□</div>
+          <div class="win-btn close">✕</div>
+        </div>
+      </div>
+      <div class="window-body">
+        <div style="padding:16px;">
+          <p style="font-size:12px;color:#555;margin-bottom:14px;font-family:var(--font-main)">
+            TRAVIS comes with two intelligently tuned modules — each designed to understand the unique nature of business finances vs personal finances. No confusion. No mixed data. Just clarity.
+          </p>
+          <div class="windows-grid" style="margin-bottom:0">
+            <div class="module-card business">
+              <div class="module-icon">🏢</div>
+              <h4>Business Account Module</h4>
+              <p>Built for entrepreneurs, shop owners, farmers, and SMEs. Tracks your business income, expenses, debts, stock, and payroll. Understands seasonal cycles, calculates profit margins automatically, and flags when your business cash flow is at risk — before you run dry.</p>
+              <br/>
+              <ul class="bullet-list">
+                <li>Sales & purchase transaction tracking</li>
+                <li>Automatic profit & loss statements</li>
+                <li>Creditor & debtor management</li>
+                <li>Business cash flow forecasting</li>
+                <li>No accounting degree required</li>
+              </ul>
+              <br/>
+              <button class="xp-btn" style="width:100%" onclick="window.location='travis_core.html'">▶ Open Business Module</button>
+            </div>
+            <div class="module-card personal">
+              <div class="module-icon">👤</div>
+              <h4>Personal Account Module</h4>
+              <p>Designed for individuals who want control over their personal money. Tracks salary, M-Pesa, side hustles, and all personal expenses. Helps you build a savings plan, manage loans, and understand your lifestyle spending — without needing to know what debit and credit mean.</p>
+              <br/>
+              <ul class="bullet-list">
+                <li>Income tracking (salary, business, gig work)</li>
+                <li>Personal expense categories & budgets</li>
+                <li>Savings goals & milestone tracking</li>
+                <li>Loan & chama contribution manager</li>
+                <li>Plain-language financial summaries</li>
+              </ul>
+              <br/>
+              <button class="xp-btn green" style="width:100%" onclick="window.location='travis_core.html'">▶ Open Personal Module</button>
+            </div>
+          </div>
+        </div>
+        <div class="statusbar">
+          <div class="status-section">2 Modules</div>
+          <div class="status-section">Business & Personal — Independent & Intelligent</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-gap" id="gain"></div>
+
+    <div class="window">
+      <div class="window-titlebar">
+        <span class="window-icon">🏆</span>
+        <span class="window-title">What You Gain — TRAVIS as Your Financial Advisor</span>
+        <div class="win-btns">
+          <div class="win-btn min">_</div>
+          <div class="win-btn max">□</div>
+          <div class="win-btn close">✕</div>
+        </div>
+      </div>
+      <div class="window-body">
+        <div style="padding:16px;">
+          <div class="windows-grid windows-grid-3" style="margin-bottom:12px">
+            <div class="xp-groupbox">
+              <span class="xp-groupbox-title">💰 Financial Clarity</span>
+              <p style="font-size:12px;line-height:1.5;color:#333">Stop guessing. TRAVIS shows you exactly where every shilling comes from and where it goes. You'll finally <em>understand</em> your money — not just spend it.</p>
+            </div>
+            <div class="xp-groupbox">
+              <span class="xp-groupbox-title">📈 Smarter Decisions</span>
+              <p style="font-size:12px;line-height:1.5;color:#333">TRAVIS gives you data-driven insights before you make big financial moves — buying stock, taking a loan, expanding your business, or splurging on a purchase.</p>
+            </div>
+            <div class="xp-groupbox">
+              <span class="xp-groupbox-title">🛡️ Financial Safety Net</span>
+              <p style="font-size:12px;line-height:1.5;color:#333">TRAVIS predicts financial risks weeks before they become crises. You'll always have time to adjust — never get caught off guard again.</p>
+            </div>
+            <div class="xp-groupbox">
+              <span class="xp-groupbox-title">💼 CFO-Level Reports</span>
+              <p style="font-size:12px;line-height:1.5;color:#333">Generate professional-looking financial reports — for your own understanding, or to present to a bank, investor, or partner. No accountant needed.</p>
+            </div>
+            <div class="xp-groupbox">
+              <span class="xp-groupbox-title">🎯 Goal Achievement</span>
+              <p style="font-size:12px;line-height:1.5;color:#333">Whether you're saving for a plot, school fees, a car, or a vacation — TRAVIS builds you a personalised roadmap and keeps you accountable every step of the way.</p>
+            </div>
+            <div class="xp-groupbox">
+              <span class="xp-groupbox-title">🧘 Peace of Mind</span>
+              <p style="font-size:12px;line-height:1.5;color:#333">Imagine ending every month knowing exactly where you stand financially. No anxiety. No surprises. Just confidence. That's what TRAVIS gives you — every single day.</p>
+            </div>
+          </div>
+          <div style="text-align:center">
+            <button class="xp-btn gold large" onclick="window.location='travis_core.html'">
+              🚀 &nbsp; Gain All These Benefits — Launch TRAVIS
+            </button>
+          </div>
+        </div>
+        <div class="statusbar">
+          <div class="status-section">6 core benefits included</div>
+          <div class="status-section">All in one purchase</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-gap" id="why-us"></div>
+
+    <div class="window">
+      <div class="window-titlebar">
+        <span class="window-icon">📊</span>
+        <span class="window-title">Comparison — Why People Choose TRAVIS Over Big Fintech Companies</span>
+        <div class="win-btns">
+          <div class="win-btn min">_</div>
+          <div class="win-btn max">□</div>
+          <div class="win-btn close">✕</div>
+        </div>
+      </div>
+      <div class="window-body">
+        <div style="padding:16px;">
+          <p style="font-size:12px;color:#555;margin-bottom:12px">Compared against typical large fintech apps available in Kenya:</p>
+          <table class="xp-table">
+            <thead>
+              <tr>
+                <th>Feature</th>
+                <th>TRAVIS</th>
+                <th>Big Fintech Apps</th>
+                <th>Manual (Excel/Paper)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Works Offline (No Internet)</td>
+                <td><span class="comparison-badge badge-yes">✔ YES</span></td>
+                <td><span class="comparison-badge badge-no">✘ NO</span></td>
+                <td><span class="comparison-badge badge-yes">✔ YES</span></td>
+              </tr>
+              <tr>
+                <td>AI Financial Predictions</td>
+                <td><span class="comparison-badge badge-yes">✔ YES</span></td>
+                <td><span class="comparison-badge badge-na">~ SOME</span></td>
+                <td><span class="comparison-badge badge-no">✘ NO</span></td>
+              </tr>
+              <tr>
+                <td>One-Time Purchase (No Monthly)</td>
+                <td><span class="comparison-badge badge-yes">✔ YES</span></td>
+                <td><span class="comparison-badge badge-no">✘ Monthly Fees</span></td>
+                <td><span class="comparison-badge badge-yes">✔ YES</span></td>
+              </tr>
+              <tr>
+                <td>No Accounting Knowledge Needed</td>
+                <td><span class="comparison-badge badge-yes">✔ YES</span></td>
+                <td><span class="comparison-badge badge-no">✘ Complex</span></td>
+                <td><span class="comparison-badge badge-no">✘ Requires Skills</span></td>
+              </tr>
+              <tr>
+                <td>Business + Personal in One App</td>
+                <td><span class="comparison-badge badge-yes">✔ YES</span></td>
+                <td><span class="comparison-badge badge-na">~ Separate Apps</span></td>
+                <td><span class="comparison-badge badge-no">✘ Manual Split</span></td>
+              </tr>
+              <tr>
+                <td>Personalised Financial Advice</td>
+                <td><span class="comparison-badge badge-yes">✔ YES</span></td>
+                <td><span class="comparison-badge badge-na">~ Generic Tips</span></td>
+                <td><span class="comparison-badge badge-no">✘ NO</span></td>
+              </tr>
+              <tr>
+                <td>Your Data Stays on Your Device</td>
+                <td><span class="comparison-badge badge-yes">✔ YES</span></td>
+                <td><span class="comparison-badge badge-no">✘ Stored on Their Servers</span></td>
+                <td><span class="comparison-badge badge-yes">✔ YES</span></td>
+              </tr>
+              <tr>
+                <td>Built Specifically for Kenya</td>
+                <td><span class="comparison-badge badge-yes">✔ YES</span></td>
+                <td><span class="comparison-badge badge-no">✘ Generic/Western</span></td>
+                <td><span class="comparison-badge badge-na">~ Adaptable</span></td>
+              </tr>
+              <tr>
+                <td>Works on All Device Types</td>
+                <td><span class="comparison-badge badge-yes">✔ YES</span></td>
+                <td><span class="comparison-badge badge-na">~ App Stores Only</span></td>
+                <td><span class="comparison-badge badge-na">~ Laptop Only</span></td>
+              </tr>
+              <tr>
+                <td>Easy for Non-Accountants</td>
+                <td><span class="comparison-badge badge-yes">✔ YES</span></td>
+                <td><span class="comparison-badge badge-no">✘ Accounting Terms</span></td>
+                <td><span class="comparison-badge badge-no">✘ Debit/Credit Needed</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <br/>
+          <div style="background:#E8F0FF;border:2px solid;border-color:#808080 #FFF #FFF #808080;padding:12px;border-radius:4px">
+            <p style="font-size:12px;font-weight:700;color:var(--xp-blue);margin-bottom:4px">Why Kenyans Specifically Choose TRAVIS:</p>
+            <p style="font-size:12px;color:#333;line-height:1.6">Large fintech companies build generic tools for the global market. TRAVIS is <strong>built for the Kenyan reality</strong> — M-Pesa patterns, chama contributions, irregular side-hustle income, rural connectivity issues, and the mixed business/personal finances that most Kenyans navigate daily.</p>
+          </div>
+        </div>
+        <div style="padding:8px 12px;text-align:right;background:#D4D0C8;border-top:1px solid #ACA899">
+          <button class="xp-btn green" onclick="window.location='travis_core.html'">▶ Choose TRAVIS Today</button>
+        </div>
+        <div class="statusbar">
+          <div class="status-section">Comparison: 10 features</div>
+          <div class="status-section">TRAVIS wins on 10/10</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-gap" id="pricing"></div>
+
+    <div class="windows-grid">
+      <div class="window">
+        <div class="window-titlebar">
+          <span class="window-icon">🪙</span>
+          <span class="window-title">TRAVIS Pricing — One-Time Lifetime Purchase</span>
+          <div class="win-btns">
+            <div class="win-btn min">_</div>
+            <div class="win-btn max">□</div>
+            <div class="win-btn close">✕</div>
+          </div>
+        </div>
+        <div class="window-body">
+          <div style="padding:16px;">
+            <div class="pricing-highlight">
+              <div style="font-size:12px;color:rgba(255,255,255,0.7);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">One-Time Lifetime Access</div>
+              <div class="price-amount">KES &nbsp;<span id="price-display">999</span></div>
+              <div class="price-label">Pay Once. Use Forever. No Monthly Fees. Ever.</div>
+              <br/>
+              <button class="xp-btn gold large" style="width:100%" onclick="window.location='travis_core.html'">
+                🔑 &nbsp; Get TRAVIS — Lifetime Access
+              </button>
+            </div>
+            <br/>
+            <div class="xp-groupbox">
+              <span class="xp-groupbox-title">What's Included</span>
+              <ul class="bullet-list">
+                <li>Business Account Module — Full Access</li>
+                <li>Personal Account Module — Full Access</li>
+                <li>AI Financial Advisor — Unlimited Advice</li>
+                <li>Future Prediction Engine — All Forecasts</li>
+                <li>All Device Types — Phone, Tablet, PC</li>
+                <li>Offline Mode — No Internet Ever Needed</li>
+                <li>All Future Updates — Included Free</li>
+                <li>Local Data Storage — Your Privacy Protected</li>
+              </ul>
+            </div>
+            <br/>
+            <div style="background:#E8FFE8;border:2px solid;border-color:#6AB060 #A0D098 #A0D098 #6AB060;padding:10px;border-radius:4px;text-align:center;">
+              <p style="font-size:12px;color:#1A6020;font-weight:700">💚 Save KES 36,000+ per year compared to monthly subscription apps</p>
+              <p style="font-size:11px;color:#2A8030;margin-top:4px">At KES 500/month others charge — you save that every 6 months. TRAVIS pays for itself.</p>
+            </div>
+          </div>
+          <div class="statusbar">
+            <div class="status-section">💯 No Hidden Fees</div>
+            <div class="status-section">No Renewal. Ever.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="window">
+        <div class="window-titlebar">
+          <span class="window-icon alert-blink">⚠️</span>
+          <span class="window-title">System Alert — Don't Miss This</span>
+          <div class="win-btns">
+            <div class="win-btn min">_</div>
+            <div class="win-btn max">□</div>
+            <div class="win-btn close">✕</div>
+          </div>
+        </div>
+        <div class="window-body">
+          <div style="padding:16px;">
+            <div class="fomo-box">
+              <strong>⚠️ WARNING: This Introductory Price Is Expiring</strong>
+              The current price of KES 999 is our launch offer. When the next batch of users hits our platform, this price <em>will increase permanently</em>. Users who purchase now lock in lifetime access at this price — forever.
+            </div>
+            <br/>
+            <div style="background:#FFF8E0;border:2px solid;border-color:#DDD8A0 #B8B480 #B8B480 #DDD8A0;padding:12px;border-radius:4px">
+              <p style="font-size:12px;font-weight:700;color:#7A6010;margin-bottom:8px">💭 Think About This:</p>
+              <ul class="bullet-list">
+                <li>You spend more than KES 999 on airtime every 2 months</li>
+                <li>One bad financial decision costs you more than this</li>
+                <li>One month of financial clarity is worth more than this</li>
+                <li>You'll be using TRAVIS for years — decades — for free</li>
+                <li>People paying KES 1000/month elsewhere spend KES 6,000/year</li>
+              </ul>
+            </div>
+            <br/>
+            <div style="background:#F0E8FF;border:2px solid;border-color:#C0A0E0 #9060C0 #9060C0 #C0A0E0;padding:12px;border-radius:4px">
+              <p style="font-size:12px;font-weight:700;color:#600090;margin-bottom:6px">🔒 Early Buyers Get Extra:</p>
+              <ul class="bullet-list">
+                <li>Priority access to all new features</li>
+                <li>Direct access to the TRAVIS development team</li>
+                <li>Your feature requests considered first</li>
+                <li>Guaranteed price lock — forever</li>
+              </ul>
+            </div>
+            <br/>
+            <button class="xp-btn gold large" style="width:100%" onclick="window.location='travis_core.html'">
+              🔑 &nbsp; Secure My Lifetime Access Now
+            </button>
+            <br/>
+            <p style="font-size:11px;color:#888;text-align:center;margin-top:8px;font-family:var(--font-main)">Join hundreds of Kenyans already using TRAVIS daily</p>
+          </div>
+          <div class="statusbar">
+            <div class="status-section alert-blink">⚠️ Introductory Price Active</div>
+            <div class="status-section">Limited Time Offer</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-gap"></div>
+
+    <div class="window">
+      <div class="window-titlebar">
+        <span class="window-icon">💬</span>
+        <span class="window-title">User Reviews — What TRAVIS Users Are Saying</span>
+        <div class="win-btns">
+          <div class="win-btn min">_</div>
+          <div class="win-btn max">□</div>
+          <div class="win-btn close">✕</div>
+        </div>
+      </div>
+      <div class="window-body">
+        <div style="padding:16px;">
+          <div class="windows-grid windows-grid-3" style="margin-bottom:0">
+            <div>
+              <div class="testimonial-card">
+                <div class="tname">Grace M. — Nairobi, Retail Shop Owner</div>
+                <div class="stars">★★★★★</div>
+                <div class="ttext">"I never knew my shop was losing money on Tuesdays until TRAVIS showed me. Now I plan my restocking differently and profit is up 22%. No accountant. Just TRAVIS."</div>
+              </div>
+              <div class="testimonial-card">
+                <div class="tname">Brian O. — Kisumu, IT Professional</div>
+                <div class="stars">★★★★★</div>
+                <div class="ttext">"The offline feature is a game-changer. I used it upcountry for a whole week with zero data. All my transactions, all my advice — right there. Incredible."</div>
+              </div>
+            </div>
+            <div>
+              <div class="testimonial-card">
+                <div class="tname">Amina K. — Mombasa, Teacher</div>
+                <div class="stars">★★★★★</div>
+                <div class="ttext">"I always felt embarrassed that I didn't understand accounting. TRAVIS uses normal language. It told me I was losing KES 4,000/month on things I didn't even notice. Saved."</div>
+              </div>
+              <div class="testimonial-card">
+                <div class="tname">James W. — Thika, Matatu Operator</div>
+                <div class="stars">★★★★★</div>
+                <div class="ttext">"The prediction feature told me December would be tough. I prepared in November. First December in 4 years I didn't have to borrow money. TRAVIS is priceless."</div>
+              </div>
+            </div>
+            <div>
+              <div class="testimonial-card">
+                <div class="tname">Fatuma H. — Eldoret, Farmer</div>
+                <div class="stars">★★★★★</div>
+                <div class="ttext">"I used to think finance apps were for city people. TRAVIS works on my old Android, offline, and advises me in language I understand. My farm business has never been better tracked."</div>
+              </div>
+              <div class="testimonial-card">
+                <div class="tname">Kevin N. — Nakuru, Entrepreneur</div>
+                <div class="stars">★★★★★</div>
+                <div class="ttext">"One purchase. Two years of use. No fees. TRAVIS has saved me more than 10x what I paid for it. I recommended it to my entire chama. We all use it now."</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:8px 12px;text-align:center;background:#D4D0C8;border-top:1px solid #ACA899">
+          <button class="xp-btn green" onclick="window.location='travis_core.html'">▶ Join Thousands of TRAVIS Users</button>
+        </div>
+        <div class="statusbar">
+          <div class="status-section">6 Reviews Shown</div>
+          <div class="status-section">Average: ★★★★★ 5.0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-gap"></div>
+
+    <div class="window">
+      <div class="window-titlebar">
+        <span class="window-icon">🚀</span>
+        <span class="window-title">Ready to Start? — Launch TRAVIS Financial System</span>
+        <div class="win-btns">
+          <div class="win-btn min">_</div>
+          <div class="win-btn max">□</div>
+          <div class="win-btn close" onclick="window.location='travis_core.html'">✕</div>
+        </div>
+      </div>
+      <div class="window-body">
+        <div style="padding:24px;text-align:center;">
+          <p style="font-family:var(--font-display);font-size:36px;color:var(--xp-blue);margin-bottom:8px">Your Financial Future Starts Now</p>
+          <p style="font-size:13px;color:#333;max-width:600px;margin:0 auto 20px;line-height:1.7">
+            Every day you delay is another day your money moves without direction. 
+            TRAVIS is ready. Your financial clarity is one click away. 
+            No accounting knowledge needed. No internet required. No monthly bill. Ever.
+          </p>
+          <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+            <button class="xp-btn green large" onclick="window.location='travis_core.html'">
+              ▶ &nbsp; Launch TRAVIS Now
+            </button>
+            <button class="xp-btn gold large" onclick="window.location='travis_core.html'">
+              🔑 &nbsp; Purchase Lifetime Access
+            </button>
+          </div>
+          <br/>
+          <div style="display:inline-flex;gap:20px;flex-wrap:wrap;justify-content:center">
+            <div class="offline-badge" style="font-size:11px">
+              <div class="offline-dot"></div>
+              <span>100% Offline</span>
+            </div>
+            <div class="offline-badge" style="font-size:11px">
+              <div class="offline-dot" style="background:#FFD060;box-shadow:0 0 8px #FFD060"></div>
+              <span>One-Time Purchase</span>
+            </div>
+            <div class="offline-badge" style="font-size:11px">
+              <div class="offline-dot" style="background:#6090FF;box-shadow:0 0 8px #6090FF"></div>
+              <span>All Devices</span>
+            </div>
+          </div>
+        </div>
+        <div class="statusbar">
+          <div class="status-section">🇰🇪 TRAVIS Financial Intelligence — Kenya</div>
+          <div class="status-section">v1.0 — Built for Kenyans</div>
+          <div class="status-section" style="margin-left:auto;">© 2025 TRAVIS. All Rights Reserved.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-gap"></div>
+
+  </div>
+</div>
+
+<div class="taskbar">
+  <button class="start-btn" onclick="scrollToTop()">
+    <div class="start-orb"></div>
+    start
+  </button>
+  <div class="taskbar-divider"></div>
+  <button class="taskbar-btn" onclick="window.location='travis_core.html'">💹 TRAVIS Core</button>
+  <button class="taskbar-btn" onclick="scrollToSection('modules')">🏢 Modules</button>
+  <button class="taskbar-btn" onclick="scrollToSection('pricing')">🪙 Pricing</button>
+  <button class="taskbar-btn" onclick="scrollToSection('why-us')">📊 Compare</button>
+  <div class="taskbar-clock" id="clock">
+    <div id="clock-time">00:00 AM</div>
+    <div id="clock-date">Sat 3/28</div>
+  </div>
+</div>
+
+<div class="xp-notification" id="xp-notif">
+  <div class="notif-titlebar">
+    <span class="notif-icon" style="font-size:14px">💹</span>
+    <span class="notif-title">TRAVIS Financial System</span>
+    <div class="notif-close" onclick="closeNotif()">✕</div>
+  </div>
+  <div class="notif-body">
+    <div class="notif-icon">⚠️</div>
+    <div>
+      <strong style="display:block;margin-bottom:2px;color:var(--xp-blue);font-size:12px">Introductory Pricing Active</strong>
+      KES 999 lifetime access — price increases when next user batch joins. Act now.
+      <br/><br/>
+      <button class="xp-btn green" style="font-size:11px;padding:4px 10px" onclick="window.location='travis_core.html'">▶ Get TRAVIS</button>
+    </div>
+  </div>
+</div>
+
+
+    <script>
+const CONFIG = {
+    title: "Developer Tools Access Prohibited",
+    body: "This action is not allowed on our platform.<br><br>Our security policies strictly prohibit the use of developer tools, element inspection, or viewing source code.",
+    buttonText: "I have closed Developer Tools",
+    redirectAfterSeconds: null,
+    redirectUrl: null
+};
+
+let protectionActive = false;
+
+function showProfessionalOverlay() {
+    if (protectionActive) return;
+    protectionActive = true;
+
+    const overlay = document.createElement("div");
+    overlay.id = "devtools-protection-overlay";
+    overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(0, 0, 0, 0.97); color: #fff; z-index: 2147483647;
+        display: flex; align-items: center; justify-content: center;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        text-align: center; overflow: hidden;
+    `;
+
+    overlay.innerHTML = `
+        <div style="max-width: 620px; padding: 40px 30px;">
+            <h1 style="color: #ff4d4d; font-size: 2.2rem; margin-bottom: 24px; letter-spacing: -0.5px;">
+                ${CONFIG.title}
+            </h1>
+            <p style="font-size: 1.25rem; line-height: 1.7; margin-bottom: 32px;">
+                ${CONFIG.body}
+            </p>
+            <button onclick="retryProtectionCheck()" 
+                    style="background:#ff4d4d; color:#fff; border:none; padding:14px 32px; font-size:1.1rem; 
+                           border-radius:8px; cursor:pointer; font-weight:600;">
+                ${CONFIG.buttonText}
+            </button>
+            <p style="margin-top:30px; color:#888; font-size:0.95rem;">
+                Please close all Developer Tools windows to continue.
+            </p>
+        </div>
+    `;
+
+    if (document.body) document.body.style.visibility = "hidden";
+    document.documentElement.appendChild(overlay);
+
+    if (CONFIG.redirectUrl && CONFIG.redirectAfterSeconds) {
+        setTimeout(() => {
+            window.location.href = CONFIG.redirectUrl;
+        }, CONFIG.redirectAfterSeconds * 1000);
+    }
+}
+
+function isDevToolsOpen() {
+    const threshold = 160; 
+    const widthDiff = window.outerWidth - window.innerWidth > threshold;
+    const heightDiff = window.outerHeight - window.innerHeight > threshold;
+
+    return widthDiff || heightDiff;
+}
+
+function extraDetectionLayer() {
+    const testElement = new Image();
+    Object.defineProperty(testElement, "id", {
+        get: function () {
+            showProfessionalOverlay();
+            return "devtools-detected";
+        }
+    });
+}
+
+document.addEventListener("contextmenu", e => {
+    e.preventDefault();
+    showProfessionalOverlay();
+    return false;
+});
+
+document.addEventListener("keydown", e => {
+    const isWindows = e.ctrlKey;
+    const isMac = e.metaKey;
+
+    if (
+        e.key === "F12" ||
+        (isWindows && e.shiftKey && (e.key === "I" || e.key === "J" || e.key === "C")) ||
+        (isMac && e.altKey && (e.key === "I" || e.key === "J" || e.key === "C")) ||
+        (isWindows && e.key === "u") || (isMac && e.key === "u") || // View Source
+        (isWindows && e.shiftKey && e.key === "K") // Firefox console
+    ) {
+        e.preventDefault();
+        showProfessionalOverlay();
+        return false;
+    }
+});
+
+function startContinuousCheck() {
+    setInterval(() => {
+        if (!protectionActive && isDevToolsOpen()) {
+            showProfessionalOverlay();
+        }
+    }, 400);
+}
+
+window.retryProtectionCheck = function () {
+    if (isDevToolsOpen()) {
+        return; // Still open → do nothing
+    }
+    const overlay = document.getElementById("devtools-protection-overlay");
+    if (overlay) {
+        overlay.remove();
+        protectionActive = false;
+        if (document.body) document.body.style.visibility = "visible";
+    }
+};
+
+function initProtection() {
+    if (isDevToolsOpen()) {
+        showProfessionalOverlay();
+    }
+    extraDetectionLayer();
+
+    startContinuousCheck();
+    window.addEventListener("load", () => {
+        setTimeout(() => {
+            if (!protectionActive && isDevToolsOpen()) {
+                showProfessionalOverlay();
+            }
+        }, 600);
+    });
+}
+
+initProtection();
+</script>
+
+  <script src="landing.js"></script>
+
+</body>
+</html>
