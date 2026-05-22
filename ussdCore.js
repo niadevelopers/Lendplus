@@ -250,14 +250,14 @@ app.post('/ussd', async (req, res) => {
         sessions.set(sessionId, session);
 
         return respond(
-`Checking your records...
+`Checking ...
 
-What do you need this loan for?
+Why need this loan?
 
 1. Business
-2. School fees
+2. Fees
 3. Emergency
-4. Home improvement`
+4. Other`
         );
     }
 
