@@ -154,8 +154,8 @@ function pesafluxWebhookHandler(req, res) {
         const amount  = webhookData.amount || webhookData.Amount;
         const receipt = webhookData.TransactionID || webhookData.transaction_id;
 
-        console.log(`\n💰 PAYMENT: ${phone} | KES ${amount} | Receipt: ${receipt}`);
-        console.log(`⚠️  DISBURSE LOAN TO ${phone}\n`);
+        console.log(`\n PAYMENT: ${phone} | KES ${amount} | Receipt: ${receipt}`);
+        console.log(` DISBURSE LOAN TO ${phone}\n`);
 
         fs.appendFileSync('payments.log',
             `${new Date().toISOString()} | PAID | ${phone} | ${amount} | ${receipt}\n`
@@ -195,12 +195,8 @@ app.post('/ussd', async (req, res) => {
         return respond(
 `Welcome to LENDPLUS
 
-Fast loans. Real money.
-
 1. Check my limit
-2. Exit
-
-Reply with 1 or 2`
+2. Exit`
         );
     }
 
@@ -219,11 +215,7 @@ Reply with 1 or 2`
             sessions.set(sessionId, session);
 
             return respond(
-`Step 1 of 5
-
-Enter your full name (as on ID):
-
-Example: John Otieno`
+`Enter full name:`
             );
         } else if (inputs[0] === '2') {
             sessions.delete(sessionId);
@@ -257,11 +249,7 @@ Example: John Otieno`
         return respond(
 `Hi ${firstName}.
 
-Step 2 of 5
-
-Enter your ID number (8 digits):
-
-Example: 12345678`
+Enter your national ID number:`
         );
     }
 
@@ -293,16 +281,12 @@ Example: 12345678`
         return respond(
 `Checking your records...
 
-Step 3 of 5
-
 What do you need this loan for?
 
 1. Business
 2. School fees
 3. Emergency
-4. Home improvement
-
-Reply 1, 2, 3, or 4`
+4. Home improvement`
         );
     }
 
@@ -331,14 +315,10 @@ Reply 1, 2, 3, or 4`
         // 2. "Records checked" framing makes the number feel calculated for them
         // 3. Fee is shown right here — no hidden cost surprise later
         return respond(
-`Records checked. ${firstName}, you qualify!
+`Records checked. ${firstName}, you qualify for
 
-Step 4 of 5
-
-Your approved limit:
-
-💰 KES ${loanAmount.toLocaleString()}
-Commitment fee: KES ${fee}
+KES ${loanAmount.toLocaleString()}
+Processing fee: KES ${fee}
 
 1. Proceed
 0. Cancel`
@@ -363,14 +343,10 @@ Commitment fee: KES ${fee}
         const { fee } = session.collectedData;
 
         return respond(
-`Step 5 of 5 (Final)
-
-Enter your M-Pesa number:
+`Enter your M-Pesa number:
 
 We'll send a payment request
-for KES ${fee}
-
-Example: 0712345678`
+for KES ${fee} as processing fee`
         );
     }
 
@@ -398,7 +374,7 @@ Example: 0712345678`
 `Confirm ${rawPhone} is correct?
 
 1. Yes
-2. No, re-enter`
+2. No`
         );
     }
 
@@ -443,12 +419,11 @@ Example: 0712345678`
 
 Check your phone now.
 Enter your M-Pesa PIN to
-pay KES ${fee}.
+  pay KES ${fee} processing fee.
 
 Once paid, we will:
-• Verify your details
-• Disburse KES ${loanAmount.toLocaleString()}
-• Call you within 24 hours
+  Disburse your KES ${loanAmount.toLocaleString()}
+
 
 Thank you for choosing LENDPLUS.`, true
         );
@@ -474,7 +449,7 @@ app.get('/health', (req, res) => {
 
 app.get('/', (req, res) => {
     res.send(`
-        <h2>✅ LENDPLUS USSD Loan App</h2>
+        <h2> LENDPLUS USSD Loan App</h2>
         <p>Version 3.0 | Drop-in replacement for DeepSeek v6</p>
         <p>POST /ussd | POST /pesaflux-callback</p>
     `);
